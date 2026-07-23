@@ -1,9 +1,6 @@
-// Button component with multiple variants and sizes
-// Palette aligns with the Login screen design.
 import React from 'react';
 import { Pressable, Text, StyleSheet, View, ActivityIndicator, ForwardedRef } from 'react-native';
-import { useTheme } from '@/hooks/use-theme';
-import { LP } from '@/constants/loginPalette';
+import { usePalette } from '@/constants/usePalette';
 
 export interface ButtonProps {
   title: string;
@@ -18,9 +15,6 @@ export interface ButtonProps {
   style?: any;
   testID?: string;
 }
-
-type Variant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'destructive';
-type Size = 'sm' | 'md' | 'lg';
 
 export const Button = React.forwardRef<Pressable, ButtonProps>(
   (
@@ -39,29 +33,30 @@ export const Button = React.forwardRef<Pressable, ButtonProps>(
     },
     ref: ForwardedRef<Pressable>
   ) => {
-    const theme = useTheme();
+    const p = usePalette();
     const isDisabled = disabled || loading;
 
-    const baseStyles = [
-      styles.base,
-      styles[variant],
-      styles[size],
-      fullWidth && styles.fullWidth,
-      isDisabled && styles.disabled,
-      style,
-    ];
+    const variantColors = {
+      primary: { bg: p.gradientStart, border: p.gradientStart, text: '#FFFFFF' },
+      secondary: { bg: p.navy, border: p.navy, text: '#FFFFFF' },
+      outline: { bg: 'transparent', border: p.gold, text: p.gold },
+      ghost: { bg: 'transparent', border: 'transparent', text: p.gold },
+      destructive: { bg: p.error, border: p.error, text: '#FFFFFF' },
+    };
 
-    const textStyles = [
-      styles.textBase,
-      styles[`text${variant.charAt(0).toUpperCase() + variant.slice(1)}` as keyof typeof styles],
-      styles[`text${size}` as keyof typeof styles],
-      isDisabled && styles.textDisabled,
-    ];
+    const vc = variantColors[variant];
 
     return (
       <Pressable
         ref={ref}
-        style={baseStyles}
+        style={[
+          styles.base,
+          styles[size],
+          fullWidth && styles.fullWidth,
+          isDisabled && styles.disabled,
+          { backgroundColor: vc.bg, borderColor: vc.border },
+          style,
+        ]}
         onPress={isDisabled ? undefined : onPress}
         disabled={isDisabled}
         testID={testID}
@@ -71,13 +66,13 @@ export const Button = React.forwardRef<Pressable, ButtonProps>(
         {loading ? (
           <ActivityIndicator
             size="small"
-            color={variant === 'primary' || variant === 'destructive' ? theme.colors.textOnPrimary : theme.colors.primary}
+            color={variant === 'primary' || variant === 'destructive' ? '#FFFFFF' : p.gold}
             style={styles.spinner}
           />
         ) : (
           <>
             {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
-            <Text style={textStyles}>{title}</Text>
+            <Text style={[styles.textBase, styles[`text${size}`], { color: vc.text }]}>{title}</Text>
             {rightIcon && <View style={styles.iconRight}>{rightIcon}</View>}
           </>
         )}
@@ -95,49 +90,16 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: 'transparent',
   },
   fullWidth: { width: '100%' },
   disabled: { opacity: 0.5 },
-
-  // Variants — primary is the grey-to-gold start colour
-  primary: {
-    backgroundColor: LP.gradientStart,
-    borderColor: LP.gradientStart,
-  },
-  secondary: {
-    backgroundColor: LP.navy,
-    borderColor: LP.navy,
-  },
-  outline: {
-    backgroundColor: 'transparent',
-    borderColor: LP.gold,
-  },
-  ghost: {
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-  },
-  destructive: {
-    backgroundColor: LP.error,
-    borderColor: LP.error,
-  },
-
-  // Sizes
   sm: { paddingVertical: 8, paddingHorizontal: 16, gap: 6 },
   md: { paddingVertical: 12, paddingHorizontal: 20, gap: 8 },
   lg: { paddingVertical: 16, paddingHorizontal: 24, gap: 10 },
-
   textBase: { fontWeight: '600', textAlign: 'center' },
-  textPrimary: { color: '#FFFFFF' },
-  textSecondary: { color: '#FFFFFF' },
-  textOutline: { color: LP.gold },
-  textGhost: { color: LP.gold },
-  textDestructive: { color: '#FFFFFF' },
   textSm: { fontSize: 13 },
   textMd: { fontSize: 15 },
   textLg: { fontSize: 17 },
-  textDisabled: { opacity: 0.7 },
-
   iconLeft: { marginRight: 2 },
   iconRight: { marginLeft: 2 },
   spinner: { marginHorizontal: 4 },

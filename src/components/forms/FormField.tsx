@@ -4,7 +4,7 @@ import { Control, Controller, FieldError } from 'react-hook-form';
 import { Input, InputProps } from '@/components/ui/Input';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
-import { LP } from '@/constants/loginPalette';
+import { usePalette } from '@/constants/usePalette';
 
 interface FormFieldProps extends InputProps {
   control: Control<any>;
@@ -22,6 +22,8 @@ const FormField: React.FC<FormFieldProps> = ({
   valueType = 'string',
   ...props
 }) => {
+  const p = usePalette();
+
   return (
     <View style={styles.container}>
       <ThemedText style={styles.title}>{title}</ThemedText>
@@ -44,7 +46,7 @@ const FormField: React.FC<FormFieldProps> = ({
           />
         )}
       />
-      {error && <Text style={styles.errorText}>{error}</Text>}
+      {error && <Text style={[styles.errorText, { color: p.error }]}>{error}</Text>}
     </View>
   );
 };
@@ -57,7 +59,6 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   errorText: {
-    color: LP.error,
     marginTop: Spacing.one,
   },
 });

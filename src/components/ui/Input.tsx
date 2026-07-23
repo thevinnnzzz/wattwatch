@@ -1,8 +1,6 @@
-// Input component — palette from login screen
 import React from 'react';
 import { View, Text, TextInput, StyleSheet, TextInputProps } from 'react-native';
 import { useTheme } from '@/hooks/use-theme';
-import { LP } from '@/constants/loginPalette';
 
 export interface InputProps extends Omit<TextInputProps, 'style' | 'onChangeText' | 'value' | 'defaultValue'> {
   label?: string;
@@ -45,9 +43,9 @@ export const Input = React.forwardRef<TextInput, InputProps>(
     return (
       <View style={[styles.container, containerStyle]} testID={testID ? `${testID}-container` : undefined}>
         {label && (
-          <Text style={[styles.label, hasError && styles.labelError]}>{label}</Text>
+          <Text style={[styles.label, hasError && { color: theme.colors.error }, { color: theme.colors.text }]}>{label}</Text>
         )}
-        <View style={[styles.inputWrapper, hasError && styles.inputWrapperError]}>
+        <View style={[styles.inputWrapper, hasError && { borderColor: theme.colors.error, borderWidth: 2 }, { backgroundColor: theme.colors.background, borderColor: theme.colors.border }]}>
           {leftIcon && (
             <View style={styles.iconLeft} pointerEvents="none">
               {leftIcon}
@@ -57,9 +55,10 @@ export const Input = React.forwardRef<TextInput, InputProps>(
             ref={ref}
             style={[
               styles.input,
-              hasError && styles.inputError,
+              hasError && { color: theme.colors.error },
               leftIcon && styles.inputWithLeftIcon,
               rightIcon && styles.inputWithRightIcon,
+              { color: theme.colors.text },
               inputStyle,
             ]}
             value={value}
@@ -75,8 +74,8 @@ export const Input = React.forwardRef<TextInput, InputProps>(
             </View>
           )}
         </View>
-        {error && <Text style={styles.errorText}>{error}</Text>}
-        {!error && helperText && <Text style={styles.helperText}>{helperText}</Text>}
+        {error && <Text style={[styles.errorText, { color: theme.colors.error }]}>{error}</Text>}
+        {!error && helperText && <Text style={[styles.helperText, { color: theme.colors.textTertiary }]}>{helperText}</Text>}
       </View>
     );
   }
@@ -86,26 +85,21 @@ Input.displayName = 'Input';
 
 const styles = StyleSheet.create({
   container: { gap: 6, width: '100%' },
-  label: { fontSize: 14, fontWeight: '500', color: LP.text },
-  labelError: { color: LP.error },
+  label: { fontSize: 14, fontWeight: '500' },
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: LP.bg,
     borderWidth: 1,
-    borderColor: LP.divider,
     borderRadius: 12,
     paddingHorizontal: 16,
   },
-  inputWrapperError: { borderColor: LP.error, borderWidth: 2 },
-  input: { flex: 1, fontSize: 16, color: LP.text, paddingVertical: 14 },
-  inputError: { color: LP.error },
+  input: { flex: 1, fontSize: 16, paddingVertical: 14 },
   inputWithLeftIcon: { paddingLeft: 0 },
   inputWithRightIcon: { paddingRight: 0 },
   iconLeft: { marginRight: 12 },
   iconRight: { marginLeft: 12 },
-  errorText: { fontSize: 12, color: LP.error, marginLeft: 4 },
-  helperText: { fontSize: 12, color: '#9CA3AF', marginLeft: 4 },
+  errorText: { fontSize: 12, marginLeft: 4 },
+  helperText: { fontSize: 12, marginLeft: 4 },
 });
 
 export default Input;

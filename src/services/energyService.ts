@@ -1,12 +1,14 @@
 // energyService.ts - Manage energy logs and calculations
 import { supabase } from '@/lib/supabase';
-import type { Appliance, EnergyLogInsert } from '@/types/database';
+import type { Appliance } from '@/types/database';
 import { calcKwh, calcCost } from '@/lib/energyCalculations';
 import { startOfMonth, endOfMonth, format } from 'date-fns';
 
 /**
- * Generates and upserts a daily energy log for a single appliance.
+ * Generates and inserts a daily energy log for a single appliance.
  * Uses realistic random variation for consumption.
+ * Deletes any existing entry for the same (appliance, date) first
+ * to avoid duplicates without requiring a composite unique constraint.
  */
 const generateAndLogForAppliance = async (
   appliance: Appliance,
@@ -22,19 +24,26 @@ const generateAndLogForAppliance = async (
   const hoursUsed = Math.max(0.5, appliance.hours_used_daily * hoursMultiplier);
   const kwh = parseFloat(calcKwh(appliance.wattage, hoursUsed).toFixed(2));
   const cost = parseFloat(calcCost(kwh, rate).toFixed(2));
+  const dateStr = format(date, 'yyyy-MM-dd');
 
-  const log: EnergyLogInsert = {
+  // Delete any existing log for this appliance+date, then insert
+  await supabase
+    .from('energy_logs')
+    .delete()
+    .eq('user_id', appliance.user_id)
+    .eq('appliance_id', appliance.id)
+    .eq('date', dateStr);
+
+  const { error } = await supabase.from('energy_logs').insert({
     user_id: appliance.user_id,
     appliance_id: appliance.id,
-    date: format(date, 'yyyy-MM-dd'),
+    date: dateStr,
     kwh_consumed: kwh,
     cost_per_day: cost,
-  };
-
-  // Upsert on (user_id, appliance_id, date) to avoid duplicates
-  await supabase.from('energy_logs').upsert(log, {
-    onConflict: 'user_id,appliance_id,date',
+    is_demo: true,
   });
+
+  if (error) throw error;
 };
 
 export const energyService = {
@@ -51,17 +60,23 @@ export const energyService = {
   },
 
   // Get aggregated energy stats for the dashboard (current month)
-  getDashboardStats: async (userId: string) => {
+  getDashboardStats: async (userId: string, excludeDemo = false) => {
     const now = new Date();
     const from = format(startOfMonth(now), 'yyyy-MM-dd');
     const to = format(endOfMonth(now), 'yyyy-MM-dd');
 
-    const { data: logs, error } = await supabase
+    let query = supabase
       .from('energy_logs')
       .select(`kwh_consumed, cost_per_day, appliance:appliances(id, name)`)
       .eq('user_id', userId)
       .gte('date', from)
       .lte('date', to);
+
+    if (excludeDemo) {
+      query = query.eq('is_demo', false);
+    }
+
+    const { data: logs, error } = await query;
 
     if (error) return { data: null, error };
 

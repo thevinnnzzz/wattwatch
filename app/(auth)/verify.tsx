@@ -1,18 +1,17 @@
 import { useEffect } from 'react';
-import { View, Text, StyleSheet, Alert } from 'react-native';
+import { Text, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LP } from '@/constants/loginPalette';
+import { usePalette } from '@/constants/usePalette';
+import type { Palette } from '@/constants/usePalette';
 import Spinner from '@/components/ui/Loading';
 
 export default function VerifyScreen() {
+  const p = usePalette();
+  const styles = createStyles(p);
+
   useEffect(() => {
-    // Show a success message then redirect
-    Alert.alert(
-      'Email Verified',
-      'Your account has been successfully verified. You can now log in.',
-      [{ text: 'OK', onPress: () => router.replace('/(auth)/') }]
-    );
+    router.replace('/(auth)/');
   }, []);
 
   return (
@@ -23,16 +22,16 @@ export default function VerifyScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (p: Palette) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: LP.bg,
+    backgroundColor: p.bg,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 16,
   },
   text: {
     fontSize: 16,
-    color: LP.text,
+    color: p.text,
   },
 });

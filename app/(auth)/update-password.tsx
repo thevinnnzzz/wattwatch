@@ -4,13 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WattWatchLogo from '@/components/layout/WattWatchLogo';
 import { z } from 'zod';
-import { LP, GRADIENT } from '@/constants/loginPalette';
+import { showAppAlert } from '@/components/ui/AppAlert';
+import { usePalette } from '@/constants/usePalette';
+import type { Palette } from '@/constants/usePalette';
 
-// ─── Schema ─────────────────────────────────────────────────────────────────
 const updatePasswordSchema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters.'),
   confirmPassword: z.string(),
@@ -21,9 +22,8 @@ const updatePasswordSchema = z.object({
 
 type UpdatePasswordForm = z.infer<typeof updatePasswordSchema>;
 
-// ─── Pill Gradient Input ────────────────────────────────────────────────────
 function InputField({
-  label, value, onChangeText, placeholder, secureTextEntry = false, error,
+  label, value, onChangeText, placeholder, secureTextEntry = false, error, p,
 }: {
   label: string;
   value: string;
@@ -31,14 +31,16 @@ function InputField({
   placeholder: string;
   secureTextEntry?: boolean;
   error?: string;
+  p: Palette;
 }) {
+  const styles = createStyles(p);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
-      <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.pillGradient}>
+      <LinearGradient colors={[p.gradientStart, p.gradientEnd]} start={{ x: 0, y: 0.5 }} end={{ x: 1, y: 0.5 }} style={styles.pillGradient}>
         <TextInput
           style={styles.textInput}
-          placeholderTextColor={LP.placeholder}
+          placeholderTextColor={p.placeholder}
           autoCorrect={false}
           value={value}
           onChangeText={onChangeText}
@@ -51,8 +53,9 @@ function InputField({
   );
 }
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function UpdatePasswordScreen() {
+  const p = usePalette();
+  const styles = createStyles(p);
   const [loading, setLoading] = useState(false);
   const { control, handleSubmit, formState: { errors } } = useForm<UpdatePasswordForm>({
     resolver: zodResolver(updatePasswordSchema),
@@ -64,16 +67,13 @@ export default function UpdatePasswordScreen() {
     try {
       const { error } = await supabase.auth.updateUser({ password: data.password });
       if (error) {
-        Alert.alert('Error', error.message);
+        showAppAlert({ title: 'Error', message: error.message, type: 'error' });
       } else {
-        Alert.alert(
-          'Password Updated',
-          'Your password has been successfully updated.',
-          [{ text: 'OK', onPress: () => router.replace('/') }]
-        );
+        showAppAlert({ title: 'Password Updated', message: 'Your password has been successfully updated.', type: 'success' });
+        router.replace('/');
       }
     } catch {
-      Alert.alert('Error', 'An unexpected error occurred.');
+      showAppAlert({ title: 'Error', message: 'An unexpected error occurred.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -105,6 +105,7 @@ export default function UpdatePasswordScreen() {
                   placeholder={placeholder}
                   secureTextEntry={secureTextEntry}
                   error={(errors as any)[name]?.message}
+                  p={p}
                 />
               )}
             />
@@ -117,14 +118,16 @@ export default function UpdatePasswordScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={GRADIENT}
+              colors={[p.gradientStart, p.gradientEnd]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={[styles.btnGradient, loading && styles.btnDisabled]}
             >
-              <Text style={styles.btnText}>
-                {loading ? 'Updating…' : 'Update Password'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.btnText}>Update Password</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -133,21 +136,20 @@ export default function UpdatePasswordScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: LP.bg },
+const createStyles = (p: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: p.bg },
   scroll: { flexGrow: 1, paddingHorizontal: 32, justifyContent: 'center', paddingVertical: 24 },
   logoWrap: { alignItems: 'center', marginBottom: 36 },
   badgeContainer: { marginBottom: 12 },
-  brandTitle: { fontSize: 28, fontWeight: '900', color: LP.text, letterSpacing: 1.5 },
+  brandTitle: { fontSize: 28, fontWeight: '900', color: p.text, letterSpacing: 1.5 },
   formContainer: { width: '100%', gap: 16 },
   fieldWrap: { width: '100%' },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: LP.text, marginBottom: 6, marginLeft: 4 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: p.text, marginBottom: 6, marginLeft: 4 },
   pillGradient: { borderRadius: 9999, paddingHorizontal: 20, height: 48, justifyContent: 'center' },
-  textInput: { fontSize: 14, color: LP.inputText, fontWeight: '500' },
-  errorText: { fontSize: 11, color: LP.error, marginTop: 4, marginLeft: 8 },
+  textInput: { fontSize: 14, color: p.inputText, fontWeight: '500' },
+  errorText: { fontSize: 11, color: p.error, marginTop: 4, marginLeft: 8 },
   btnWrap: { marginTop: 16, borderRadius: 9999 },
   btnGradient: { borderRadius: 9999, height: 50, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: LP.inputText, fontSize: 15, fontWeight: '700' },
+  btnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
 });

@@ -4,15 +4,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import WattWatchLogo from '@/components/layout/WattWatchLogo';
 import { z } from 'zod';
-import { LP, GRADIENT } from '@/constants/loginPalette';
+import { showAppAlert } from '@/components/ui/AppAlert';
+import { usePalette } from '@/constants/usePalette';
+import type { Palette } from '@/constants/usePalette';
 import * as Linking from 'expo-linking';
 
-// ─── Schema ─────────────────────────────────────────────────────────────────
 const registerSchema = z.object({
+  name: z.string().min(1, 'Please enter your name.'),
   email: z.string().email('Please enter a valid email address.'),
   password: z.string().min(8, 'Password must be at least 8 characters.'),
   confirmPassword: z.string(),
@@ -23,7 +25,6 @@ const registerSchema = z.object({
 
 type RegisterForm = z.infer<typeof registerSchema>;
 
-// ─── Pill Gradient Input Field ──────────────────────────────────────────────
 interface FieldProps {
   label: string;
   value: string;
@@ -33,24 +34,26 @@ interface FieldProps {
   error?: string;
   keyboardType?: any;
   autoCapitalize?: any;
+  p: Palette;
 }
 
 function InputField({
   label, value, onChangeText, placeholder,
-  secureTextEntry = false, error, keyboardType, autoCapitalize,
+  secureTextEntry = false, error, keyboardType, autoCapitalize, p,
 }: FieldProps) {
+  const styles = createStyles(p);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <LinearGradient
-        colors={GRADIENT}
+        colors={[p.gradientStart, p.gradientEnd]}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         style={styles.pillGradient}
       >
         <TextInput
           style={styles.textInput}
-          placeholderTextColor={LP.placeholder}
+          placeholderTextColor={p.placeholder}
           autoCorrect={false}
           value={value}
           onChangeText={onChangeText}
@@ -65,13 +68,14 @@ function InputField({
   );
 }
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function RegisterScreen() {
+  const p = usePalette();
+  const styles = createStyles(p);
   const [loading, setLoading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
     resolver: zodResolver(registerSchema),
-    defaultValues: { email: '', password: '', confirmPassword: '' },
+    defaultValues: { name: '', email: '', password: '', confirmPassword: '' },
   });
 
   const onSubmit = async (data: RegisterForm) => {
@@ -82,22 +86,19 @@ export default function RegisterScreen() {
         password: data.password,
         options: {
           data: {
-            full_name: '',
+            full_name: data.name,
           },
           emailRedirectTo: Linking.createURL('/(auth)/verify'),
         },
       });
       if (error) {
-        Alert.alert('Sign Up Failed', error.message);
+        showAppAlert({ title: 'Sign Up Failed', message: error.message, type: 'error' });
       } else {
-        Alert.alert(
-          'Sign Up Successful',
-          'Please check your email for a verification link.',
-          [{ text: 'OK', onPress: () => router.replace('/(auth)/') }]
-        );
+        showAppAlert({ title: 'Sign Up Successful', message: 'Please check your email for a verification link.', type: 'success' });
+        router.replace('/(auth)/');
       }
     } catch {
-      Alert.alert('Sign Up Error', 'An unexpected error occurred.');
+      showAppAlert({ title: 'Sign Up Error', message: 'An unexpected error occurred.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -114,9 +115,10 @@ export default function RegisterScreen() {
 
         <View style={styles.formContainer}>
           {([
-            { name: 'email', label: 'Email Address', placeholder: 'you@example.com', keyboardType: 'email-address', autoCapitalize: 'none' as const, secureTextEntry: false },
-            { name: 'password', label: 'Password', placeholder: 'Min. 8 characters', keyboardType: undefined, autoCapitalize: undefined, secureTextEntry: true },
-            { name: 'confirmPassword', label: 'Confirm Password', placeholder: 'Re-enter your password', keyboardType: undefined, autoCapitalize: undefined, secureTextEntry: true },
+            { name: 'name', label: 'Full Name', placeholder: 'Juan Dela Cruz', keyboardType: undefined as const, autoCapitalize: 'words' as const, secureTextEntry: false },
+            { name: 'email', label: 'Email Address', placeholder: 'you@example.com', keyboardType: 'email-address' as const, autoCapitalize: 'none' as const, secureTextEntry: false },
+            { name: 'password', label: 'Password', placeholder: 'Min. 8 characters', keyboardType: undefined as const, autoCapitalize: undefined, secureTextEntry: true },
+            { name: 'confirmPassword', label: 'Confirm Password', placeholder: 'Re-enter your password', keyboardType: undefined as const, autoCapitalize: undefined, secureTextEntry: true },
           ] as const).map(({ name, label, placeholder, keyboardType, autoCapitalize, secureTextEntry }) => (
             <Controller
               key={name}
@@ -132,6 +134,7 @@ export default function RegisterScreen() {
                   autoCapitalize={autoCapitalize}
                   secureTextEntry={secureTextEntry}
                   error={(errors as any)[name]?.message}
+                  p={p}
                 />
               )}
             />
@@ -144,14 +147,16 @@ export default function RegisterScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={GRADIENT}
+              colors={[p.gradientStart, p.gradientEnd]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={[styles.btnGradient, loading && styles.btnDisabled]}
             >
-              <Text style={styles.btnText}>
-                {loading ? 'Creating Account…' : 'Create Account'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.btnText}>Create Account</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
@@ -169,25 +174,24 @@ export default function RegisterScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: LP.bg },
+const createStyles = (p: Palette) => StyleSheet.create({
+  safe: { flex: 1, backgroundColor: p.bg },
   scroll: { flexGrow: 1, paddingHorizontal: 32, justifyContent: 'center', paddingVertical: 24 },
   logoWrap: { alignItems: 'center', marginBottom: 36 },
   badgeContainer: { marginBottom: 12 },
-  brandTitle: { fontSize: 28, fontWeight: '900', color: LP.text, letterSpacing: 1.5 },
+  brandTitle: { fontSize: 28, fontWeight: '900', color: p.text, letterSpacing: 1.5 },
   formContainer: { width: '100%', gap: 16 },
   fieldWrap: { width: '100%' },
-  fieldLabel: { fontSize: 12, fontWeight: '600', color: LP.text, marginBottom: 6, marginLeft: 4 },
+  fieldLabel: { fontSize: 12, fontWeight: '600', color: p.text, marginBottom: 6, marginLeft: 4 },
   pillGradient: { borderRadius: 9999, paddingHorizontal: 20, height: 48, justifyContent: 'center' },
-  textInput: { fontSize: 14, color: LP.inputText, fontWeight: '500' },
-  errorText: { fontSize: 11, color: LP.error, marginTop: 4, marginLeft: 8 },
+  textInput: { fontSize: 14, color: p.inputText, fontWeight: '500' },
+  errorText: { fontSize: 11, color: p.error, marginTop: 4, marginLeft: 8 },
   btnWrap: { marginTop: 16, borderRadius: 9999 },
   btnGradient: { borderRadius: 9999, height: 50, alignItems: 'center', justifyContent: 'center' },
   btnDisabled: { opacity: 0.6 },
-  btnText: { color: LP.inputText, fontSize: 15, fontWeight: '700' },
+  btnText: { color: '#FFFFFF', fontSize: 15, fontWeight: '700' },
   footer: { alignItems: 'center', marginTop: 40 },
-  footerText: { color: LP.text, fontSize: 12, fontWeight: '500' },
+  footerText: { color: p.text, fontSize: 12, fontWeight: '500' },
   footerTouch: { marginTop: 4 },
-  footerLink: { color: LP.text, fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
+  footerLink: { color: p.text, fontSize: 12, fontWeight: '700', textDecorationLine: 'underline' },
 });

@@ -1,7 +1,6 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
 import { Fonts, legacyColors } from '@/constants/theme';
-import { useColorScheme } from 'react-native';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
@@ -9,8 +8,7 @@ export type ThemedTextProps = TextProps & {
 };
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
-  const scheme = useColorScheme();
-  const colors = scheme === 'dark' ? legacyColors.dark : legacyColors.light;
+  const colors = legacyColors.light;
 
   return (
     <Text

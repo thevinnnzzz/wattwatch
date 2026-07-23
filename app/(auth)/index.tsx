@@ -1,15 +1,17 @@
+
+import { showAppAlert } from '@/components/ui/AppAlert';
+import type { Palette } from '@/constants/usePalette';
+import { usePalette } from '@/constants/usePalette';
 import { supabase } from '@/lib/supabase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
-import { Alert, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import WattWatchLogo from '@/components/layout/WattWatchLogo';
 import { z } from 'zod';
 
-// ─── Schema ─────────────────────────────────────────────────────────────────
 const loginSchema = z.object({
   email: z.string().email('Please enter a valid email address.'),
   password: z.string().min(8, 'Password must be at least 8 characters.'),
@@ -17,7 +19,6 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>;
 
-// ─── Pill Gradient Input Field ──────────────────────────────────────────────
 interface FieldProps {
   label: string;
   value: string;
@@ -27,24 +28,26 @@ interface FieldProps {
   error?: string;
   keyboardType?: any;
   autoCapitalize?: any;
+  p: Palette;
 }
 
 function InputField({
   label, value, onChangeText, placeholder,
-  secureTextEntry = false, error, keyboardType, autoCapitalize,
+  secureTextEntry = false, error, keyboardType, autoCapitalize, p,
 }: FieldProps) {
+  const styles = createStyles(p);
   return (
     <View style={styles.fieldWrap}>
       <Text style={styles.fieldLabel}>{label}</Text>
       <LinearGradient
-        colors={['#4A4A4A', '#D4AF37']}
+        colors={[p.gradientStart, p.gradientEnd]}
         start={{ x: 0, y: 0.5 }}
         end={{ x: 1, y: 0.5 }}
         style={styles.pillGradient}
       >
         <TextInput
           style={styles.textInput}
-          placeholderTextColor="#E5E7EB"
+          placeholderTextColor={p.placeholder}
           autoCorrect={false}
           value={value}
           onChangeText={onChangeText}
@@ -59,8 +62,9 @@ function InputField({
   );
 }
 
-// ─── Screen ──────────────────────────────────────────────────────────────────
 export default function LoginScreen() {
+  const p = usePalette();
+  const styles = createStyles(p);
   const [loading, setLoading] = useState(false);
 
   const { control, handleSubmit, formState: { errors } } = useForm<LoginForm>({
@@ -80,15 +84,13 @@ export default function LoginScreen() {
       });
 
       if (error) {
-        Alert.alert('Login Failed', error.message);
+        showAppAlert({ title: 'Login Failed', message: error.message, type: 'error' });
       } else {
-        // Hack: slight delay ensures session is persisted, then navigate
-        setTimeout(() => {
-          router.replace('/(app)/');
-        }, 300);
+        showAppAlert({ title: 'Welcome Back', message: 'You have signed in successfully.', type: 'success' });
+        router.replace('/(app)/');
       }
     } catch {
-      Alert.alert('Login Error', 'An unexpected error occurred.');
+      showAppAlert({ title: 'Login Error', message: 'An unexpected error occurred.', type: 'error' });
     } finally {
       setLoading(false);
     }
@@ -101,12 +103,17 @@ export default function LoginScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        {/* Logo */}
-        <WattWatchLogo showBrandName />
+        <View style={styles.logoContainer}>
+          <View style={styles.logoBadge}>
+            <Image source={require('@/assets/images/icon.png')} style={styles.logoImage} resizeMode="contain" />
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandWatt}>watt</Text>
+            <Text style={styles.brandWatch}>watch</Text>
+          </View>
+        </View>
 
-        {/* Form Container */}
         <View style={styles.formContainer}>
-          {/* Email Address */}
           <Controller
             control={control}
             name="email"
@@ -119,11 +126,11 @@ export default function LoginScreen() {
                 keyboardType="email-address"
                 autoCapitalize="none"
                 error={errors.email?.message}
+                p={p}
               />
             )}
           />
 
-          {/* Password */}
           <View>
             <Controller
               control={control}
@@ -136,11 +143,11 @@ export default function LoginScreen() {
                   placeholder="Enter your password"
                   secureTextEntry
                   error={errors.password?.message}
+                  p={p}
                 />
               )}
             />
 
-            {/* Forgot Password Link */}
             <Link href="/(auth)/forgot-password" asChild>
               <TouchableOpacity style={styles.forgotLinkWrap}>
                 <Text style={styles.forgotLinkText}>Forgot Password?</Text>
@@ -148,7 +155,6 @@ export default function LoginScreen() {
             </Link>
           </View>
 
-          {/* Sign In Pill Button */}
           <TouchableOpacity
             style={styles.btnWrap}
             onPress={handleSubmit(onSubmit)}
@@ -156,21 +162,22 @@ export default function LoginScreen() {
             activeOpacity={0.8}
           >
             <LinearGradient
-              colors={['#4A4A4A', '#D4AF37']}
+              colors={[p.gradientStart, p.gradientEnd]}
               start={{ x: 0, y: 0.5 }}
               end={{ x: 1, y: 0.5 }}
               style={[styles.btnGradient, loading && styles.btnDisabled]}
             >
-              <Text style={styles.btnText}>
-                {loading ? 'Logging in…' : 'Sign In'}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : (
+                <Text style={styles.btnText}>Sign In</Text>
+              )}
             </LinearGradient>
           </TouchableOpacity>
         </View>
 
-        {/* Sign up link */}
         <View style={styles.footer}>
-          <Text style={styles.footerText}>Don’t have an account?</Text>
+          <Text style={styles.footerText}>Don't have an account?</Text>
           <Link href="/(auth)/register" asChild>
             <TouchableOpacity style={styles.footerTouch}>
               <Text style={styles.footerLink}>Register Now</Text>
@@ -182,11 +189,10 @@ export default function LoginScreen() {
   );
 }
 
-// ─── Styles ──────────────────────────────────────────────────────────────────
-const styles = StyleSheet.create({
+const createStyles = (p: Palette) => StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: p.bg,
   },
   scroll: {
     flexGrow: 1,
@@ -194,27 +200,51 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingVertical: 24,
   },
-
-  // Logo
-  logoWrap: {
+  logoContainer: {
     alignItems: 'center',
+    justifyContent: 'center',
     marginBottom: 36,
   },
-
-  // Form
+  logoBadge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: '#1E3A8A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 90,
+    height: 90,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandWatt: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#1E3A8A',
+  },
+  brandWatch: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#FF8C00',
+  },
   formContainer: {
     width: '100%',
     gap: 16,
   },
-
-  // Field
   fieldWrap: {
     width: '100%',
   },
   fieldLabel: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#000000',
+    color: p.text,
     marginBottom: 6,
     marginLeft: 4,
   },
@@ -226,17 +256,15 @@ const styles = StyleSheet.create({
   },
   textInput: {
     fontSize: 14,
-    color: '#FFFFFF',
+    color: p.inputText,
     fontWeight: '500',
   },
   errorText: {
     fontSize: 11,
-    color: '#DC2626',
+    color: p.error,
     marginTop: 4,
     marginLeft: 8,
   },
-
-  // Forgot Password Link
   forgotLinkWrap: {
     alignSelf: 'flex-end',
     marginTop: 6,
@@ -244,11 +272,9 @@ const styles = StyleSheet.create({
   forgotLinkText: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#000000',
+    color: p.text,
     textDecorationLine: 'underline',
   },
-
-  // Button
   btnWrap: {
     marginTop: 16,
     borderRadius: 9999,
@@ -267,14 +293,12 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-
-  // Footer
   footer: {
     alignItems: 'center',
     marginTop: 40,
   },
   footerText: {
-    color: '#000000',
+    color: p.text,
     fontSize: 12,
     fontWeight: '500',
   },
@@ -282,7 +306,7 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   footerLink: {
-    color: '#000000',
+    color: p.text,
     fontSize: 12,
     fontWeight: '700',
     textDecorationLine: 'underline',

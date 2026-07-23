@@ -1,32 +1,47 @@
-import WattWatchLogo from '@/components/layout/WattWatchLogo';
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { showAppAlert } from '@/components/ui/AppAlert';
 import Spinner from '@/components/ui/Loading';
-import { LP } from '@/constants/loginPalette';
 import { Spacing } from '@/constants/theme';
+import type { Palette } from '@/constants/usePalette';
+import { usePalette } from '@/constants/usePalette';
 import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
-import { useBudget, useBudgetAlert, useDashboardStats, useUnreadNotificationsCount } from '@/hooks/useSupabaseQuery';
+import { useActiveRate, useAdminConfig, useBudget, useBudgetAlert, useDashboardStats, useUnreadNotificationsCount, useUserAppliances } from '@/hooks/useSupabaseQuery';
+import { generateTips } from '@/lib/energyCalculations';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useEffect, useMemo } from 'react';
-import { Alert, PixelRatio, Pressable, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Image, PixelRatio, Pressable, RefreshControl, ScrollView, StyleSheet, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
-// Base design width used to scale sizes across phone sizes (small phones -> tablets)
 const BASE_WIDTH = 375;
 
 export default function DashboardScreen() {
   const { profile, loading: authLoading } = useAuth();
-  useNotifications();
-  const { data: dashboardData, isLoading: statsLoading } = useDashboardStats(profile?.id ?? '');
-  const { data: budgetData, isLoading: budgetLoading } = useBudget(profile?.id ?? '');
+  const { sendLocalNotification } = useNotifications();
+  const { data: adminConfigData } = useAdminConfig();
+  const adminConfig = adminConfigData?.data;
+  const excludeDemo = adminConfig ? !adminConfig.generate_data_enabled : false;
+  const { data: dashboardData, isLoading: statsLoading, refetch: refetchDashboard } = useDashboardStats(profile?.id ?? '', excludeDemo);
+  const { data: budgetData, isLoading: budgetLoading, refetch: refetchBudget } = useBudget(profile?.id ?? '');
   const { data: unreadCountData } = useUnreadNotificationsCount(profile?.id ?? '');
-  const { data: budgetAlertData } = useBudgetAlert(profile?.id ?? '');
+  const { data: budgetAlertData, refetch: refetchBudgetAlert } = useBudgetAlert(profile?.id ?? '');
+
+  const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'consumers' | 'tips'>('consumers');
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await Promise.all([refetchDashboard(), refetchBudget(), refetchBudgetAlert()]);
+    setRefreshing(false);
+  }, [refetchDashboard, refetchBudget, refetchBudgetAlert]);
+
+  const shownAlertKey = useRef<string | null>(null);
 
   const { width } = useWindowDimensions();
+  const p = usePalette();
 
-  // Clamp scale so it doesn't blow up on tablets or shrink too much on tiny phones
   const scale = useMemo(() => {
     const raw = width / BASE_WIDTH;
     return Math.min(Math.max(raw, 0.85), 1.25);
@@ -38,16 +53,27 @@ export default function DashboardScreen() {
   const isTablet = width >= 768;
 
   useEffect(() => {
-    if (budgetAlertData && (budgetAlertData.type === 'approaching' || budgetAlertData.type === 'exceeded')) {
-      Alert.alert(
-        budgetAlertData.type === 'approaching' ? 'Budget Alert' : 'Budget Exceeded!',
-        budgetAlertData.message
-      );
-    }
-  }, [budgetAlertData]);
+    if (!budgetAlertData) return;
+    if (budgetAlertData.type !== 'approaching' && budgetAlertData.type !== 'exceeded') return;
+
+    const key = `${budgetAlertData.type}:${budgetAlertData.spent}:${budgetAlertData.limit}`;
+    if (shownAlertKey.current === key) return;
+    shownAlertKey.current = key;
+
+    const title = budgetAlertData.type === 'approaching' ? 'Budget Alert' : 'Budget Exceeded!';
+    const body = budgetAlertData.message;
+    showAppAlert({ title, message: body, type: budgetAlertData.type === 'exceeded' ? 'error' : 'warning' });
+    sendLocalNotification(title, body, { url: '/(app)/notifications' });
+  }, [budgetAlertData, sendLocalNotification]);
 
   const stats = dashboardData?.data;
   const budget = budgetData?.data;
+  const { data: appliancesData } = useUserAppliances(profile?.id ?? '');
+  const { data: rateData } = useActiveRate();
+  const appliances = (appliancesData as any)?.data ?? [];
+  const rate = (rateData as any)?.data?.rate_per_kwh ?? 12.45;
+  const tips = generateTips(appliances, rate);
+
   const unreadNotifs = unreadCountData ?? 0;
 
   const budgetSpentPercentage = budget && stats ? (stats.totalCost / budget.monthly_limit) * 100 : 0;
@@ -56,13 +82,12 @@ export default function DashboardScreen() {
     return <Spinner />;
   }
 
-  const styles = createStyles(rf, isSmallScreen, isTablet);
+  const styles = createStyles(p, rf, isSmallScreen, isTablet);
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.gold} colors={[p.gold]} />}>
         <ThemedView style={styles.container}>
-          {/* Header */}
           <ThemedView style={styles.header}>
             <View style={styles.greetingWrap}>
               <ThemedText
@@ -75,13 +100,15 @@ export default function DashboardScreen() {
               </ThemedText>
             </View>
             <View style={styles.headerRight}>
-              <WattWatchLogo />
+              <Pressable onPress={() => router.push('/about')} hitSlop={8}>
+                <Image source={require('@/assets/images/icon.png')} style={styles.headerAppIcon} resizeMode="contain" />
+              </Pressable>
               <Pressable
                 onPress={() => router.push('/notifications')}
                 style={{ position: 'relative' }}
                 hitSlop={8}
               >
-                <Ionicons name="notifications" size={rf(24)} color={LP.text} />
+                <Ionicons name="notifications" size={rf(24)} color={p.text} />
                 {unreadNotifs > 0 && (
                   <View style={styles.notifBadge}>
                     <ThemedText style={styles.notifBadgeText} maxFontSizeMultiplier={1.2}>
@@ -93,11 +120,33 @@ export default function DashboardScreen() {
             </View>
           </ThemedView>
 
-          {/* Energy Summary Card */}
           <View style={styles.summaryCard}>
-            <ThemedText style={styles.summaryCardLabel} maxFontSizeMultiplier={1.3}>
-              This Month's Usage
-            </ThemedText>
+            <View style={styles.summaryCardLabelRow}>
+              <ThemedText style={styles.summaryCardLabel} maxFontSizeMultiplier={1.3}>
+                This Month&rsquo;s Usage
+              </ThemedText>
+              <Pressable
+                onPress={() =>
+                  showAppAlert({
+                    title: 'How this is calculated',
+                    message: [
+                      'Total Consumption',
+                      'Sum of all kWh consumed this month from your appliances\' energy logs.',
+                      '',
+                      'Estimated Cost',
+                      'Sum of the daily cost (kWh × Meralco rate) for each energy log entry this month.',
+                      '',
+                      'Top Energy Consumers',
+                      'Appliances ranked by their total cost contribution this month.',
+                    ].join('\n'),
+                    type: 'info',
+                  })
+                }
+                hitSlop={8}
+              >
+                <Ionicons name="information-circle-outline" size={rf(20)} color="#E5E7EB" />
+              </Pressable>
+            </View>
             <View style={styles.summaryValues}>
               <View style={styles.summaryColumn}>
                 <ThemedText style={styles.summaryCardTitle} maxFontSizeMultiplier={1.3} numberOfLines={1}>
@@ -148,33 +197,65 @@ export default function DashboardScreen() {
             )}
           </View>
 
-          {/* Top Consumers */}
           <View style={styles.sectionContainer}>
-            <ThemedText style={styles.sectionTitle} maxFontSizeMultiplier={1.3}>
-              Top Energy Consumers
-            </ThemedText>
-            <View style={[styles.topConsumersContainer, isTablet && styles.topConsumersGrid]}>
-              {stats?.topConsumers && stats.topConsumers.length > 0 ? (
-                stats.topConsumers.map((consumer: any, index: number) => (
-                  <View
-                    key={index}
-                    style={[styles.consumerCard, isTablet && styles.consumerCardTablet]}
-                  >
-                    <ThemedText style={styles.consumerName} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                      {consumer.name}
-                    </ThemedText>
-                    <ThemedText style={styles.consumerKwh} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                      {consumer.kwh.toFixed(2)} kWh
-                    </ThemedText>
-                    <ThemedText style={styles.consumerCost} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                      ₱{consumer.cost.toFixed(2)}
-                    </ThemedText>
-                  </View>
-                ))
-              ) : (
-                <ThemedText>No appliance usage recorded yet.</ThemedText>
-              )}
+            <View style={styles.tabBar}>
+              <Pressable
+                style={[styles.tab, activeTab === 'consumers' && styles.tabActive]}
+                onPress={() => setActiveTab('consumers')}
+              >
+                <ThemedText style={[styles.tabText, activeTab === 'consumers' && styles.tabTextActive]} maxFontSizeMultiplier={1.2}>
+                  Top Consumers
+                </ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.tab, activeTab === 'tips' && styles.tabActive]}
+                onPress={() => setActiveTab('tips')}
+              >
+                <ThemedText style={[styles.tabText, activeTab === 'tips' && styles.tabTextActive]} maxFontSizeMultiplier={1.2}>
+                  Energy Tips
+                </ThemedText>
+              </Pressable>
             </View>
+
+            {activeTab === 'consumers' ? (
+              <View style={[styles.topConsumersContainer, isTablet && styles.topConsumersGrid]}>
+                {stats?.topConsumers && stats.topConsumers.length > 0 ? (
+                  stats.topConsumers.map((consumer: any, index: number) => (
+                    <View
+                      key={index}
+                      style={[styles.consumerCard, isTablet && styles.consumerCardTablet]}
+                    >
+                      <ThemedText style={styles.consumerName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
+                        {consumer.name}
+                      </ThemedText>
+                      <View style={styles.consumerValues}>
+                        <ThemedText style={styles.consumerKwh} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                          {consumer.kwh.toFixed(2)} kWh
+                        </ThemedText>
+                        <ThemedText style={styles.consumerCost} numberOfLines={1} maxFontSizeMultiplier={1.3}>
+                          ₱{consumer.cost.toFixed(2)}
+                        </ThemedText>
+                      </View>
+                    </View>
+                  ))
+                ) : (
+                  <ThemedText>No appliance usage recorded yet.</ThemedText>
+                )}
+              </View>
+            ) : (
+              <View style={styles.tipsContainer}>
+                {appliances.length === 0 ? (
+                  <ThemedText>Add appliances to receive personalized energy saving tips.</ThemedText>
+                ) : (
+                  tips.map((tip, index) => (
+                    <View key={index} style={[styles.tipItem, { backgroundColor: p.card }]}>
+                      <Ionicons name="bulb-outline" size={rf(20)} color={p.gold} style={{ marginTop: 2 }} />
+                      <ThemedText style={styles.tipText} maxFontSizeMultiplier={1.2}>{tip}</ThemedText>
+                    </View>
+                  ))
+                )}
+              </View>
+            )}
           </View>
         </ThemedView>
       </ScrollView>
@@ -182,9 +263,9 @@ export default function DashboardScreen() {
   );
 }
 
-const createStyles = (rf: (n: number) => number, isSmallScreen: boolean, isTablet: boolean) =>
+const createStyles = (p: Palette, rf: (n: number) => number, isSmallScreen: boolean, isTablet: boolean) =>
   StyleSheet.create({
-    safeArea: { flex: 1, backgroundColor: LP.bg },
+    safeArea: { flex: 1, backgroundColor: p.bg },
     scrollContent: { flexGrow: 1 },
     container: {
       flex: 1,
@@ -204,27 +285,28 @@ const createStyles = (rf: (n: number) => number, isSmallScreen: boolean, isTable
     greetingWrap: { flexShrink: 1, minWidth: 0, marginRight: Spacing.two },
     greeting: { fontSize: rf(24), fontWeight: 'bold', lineHeight: rf(30) },
     headerRight: { flexDirection: 'row', alignItems: 'center', gap: Spacing.four, flexShrink: 0 },
+    headerAppIcon: { width: rf(30), height: rf(30), borderRadius: rf(7) },
     notifBadge: {
       position: 'absolute',
       right: -6,
-      top: -3,
-      backgroundColor: LP.error,
-      borderRadius: 9,
-      minWidth: 18,
-      height: 18,
-      paddingHorizontal: 3,
+      top: -4,
+      backgroundColor: p.error,
+      borderRadius: 10,
+      width: 20,
+      height: 20,
       alignItems: 'center',
       justifyContent: 'center',
-      borderWidth: 1,
-      borderColor: LP.bg,
+      borderWidth: 1.5,
+      borderColor: p.bg,
     },
-    notifBadgeText: { color: 'white', fontSize: rf(10), fontWeight: 'bold' },
+    notifBadgeText: { color: 'white', fontSize: rf(11), fontWeight: 'bold', textAlign: 'center', lineHeight: rf(14) },
     summaryCard: {
-      backgroundColor: LP.gradientStart,
+      backgroundColor: p.gradientStart,
       borderRadius: 24,
       padding: isSmallScreen ? Spacing.four : Spacing.five,
       gap: Spacing.three,
     },
+    summaryCardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
     summaryCardLabel: { color: '#E5E7EB', fontSize: rf(14), lineHeight: rf(18) },
     summaryValues: {
       flexDirection: 'row',
@@ -233,8 +315,6 @@ const createStyles = (rf: (n: number) => number, isSmallScreen: boolean, isTable
       marginTop: Spacing.four,
       gap: Spacing.three,
     },
-    // fixed width column with its own vertical rhythm — this is what
-    // stops "Total Consumption" from colliding with "106.34 kWh"
     summaryColumn: { flexShrink: 1, minWidth: 0, maxWidth: '48%', gap: 4 },
     summaryCardTitle: { color: 'white', fontSize: rf(16), lineHeight: rf(20) },
     summaryAmount: {
@@ -249,7 +329,7 @@ const createStyles = (rf: (n: number) => number, isSmallScreen: boolean, isTable
       borderRadius: 4,
       marginTop: Spacing.two,
     },
-    progressBarFilled: { backgroundColor: LP.gold, height: 8, borderRadius: 4 },
+    progressBarFilled: { backgroundColor: p.gold, height: 8, borderRadius: 4 },
     progressLabelContainer: { flexDirection: 'row', justifyContent: 'space-between', flexWrap: 'wrap' },
     progressLabel: { color: '#E5E7EB', fontSize: rf(12) },
     sectionContainer: { gap: Spacing.three },
@@ -261,38 +341,80 @@ const createStyles = (rf: (n: number) => number, isSmallScreen: boolean, isTable
       justifyContent: 'space-between',
     },
     consumerCard: {
-      backgroundColor: 'white',
+      backgroundColor: p.card,
       borderRadius: 12,
       padding: isSmallScreen ? Spacing.two : Spacing.three,
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
+      gap: Spacing.two,
       elevation: 2,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.05,
       shadowRadius: 4,
     },
+    tabBar: {
+      flexDirection: 'row',
+      backgroundColor: p.divider,
+      borderRadius: 10,
+      padding: 3,
+    },
+    tab: {
+      flex: 1,
+      paddingVertical: 8,
+      alignItems: 'center',
+      borderRadius: 8,
+    },
+    tabActive: {
+      backgroundColor: p.gold,
+    },
+    tabText: {
+      fontSize: rf(13),
+      fontWeight: '600',
+      color: p.textMuted,
+    },
+    tabTextActive: {
+      color: '#FFFFFF',
+    },
+    tipsContainer: {
+      gap: Spacing.two,
+    },
+    tipItem: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: Spacing.two,
+      padding: Spacing.three,
+      borderRadius: 12,
+    },
+    tipText: {
+      flex: 1,
+      fontSize: rf(14),
+      lineHeight: rf(20),
+    },
     consumerCardTablet: {
       width: '48%',
     },
-    // explicit dark colors instead of relying on ThemedText's theme
-    // color (which is tuned for the dark navy background, not this
-    // white card — that's why the text looked washed out)
     consumerName: {
       fontWeight: 'bold',
       fontSize: rf(14),
-      color: '#111827',
+      color: p.text,
       flexShrink: 1,
-      marginRight: Spacing.two,
+      flex: 1,
+    },
+    consumerValues: {
+      alignItems: 'flex-end',
+      flexShrink: 0,
     },
     consumerKwh: {
       fontSize: rf(13),
-      color: '#4B5563',
+      color: p.textMuted,
+      textAlign: 'right',
     },
     consumerCost: {
       fontSize: rf(13),
       fontWeight: '600',
-      color: LP.gold,
+      color: p.gold,
+      textAlign: 'right',
     },
   });

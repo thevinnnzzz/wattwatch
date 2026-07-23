@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Image, Text, StyleSheet } from 'react-native';
-import { LP } from '@/constants/loginPalette';
+import { usePalette } from '@/constants/usePalette';
 
 interface Props {
   showBrandName?: boolean;
@@ -8,6 +8,8 @@ interface Props {
 }
 
 export default function WattWatchLogo({ showBrandName = false, size = 80 }: Props) {
+  const p = usePalette();
+
   return (
     <View style={[styles.wrap, { gap: size * 0.15 }]}>
       <Image
@@ -15,7 +17,7 @@ export default function WattWatchLogo({ showBrandName = false, size = 80 }: Prop
         style={{ width: size, height: size }}
         resizeMode="contain"
       />
-      {showBrandName && <Text style={[styles.brandTitle, showBrandName && styles.brandTitleVisible]}>WATTWATCH</Text>}
+      {showBrandName && <Text style={[styles.brandTitle, { color: p.text }]}>WATTWATCH</Text>}
     </View>
   );
 }
@@ -27,7 +29,6 @@ const styles = StyleSheet.create({
   brandTitle: {
     fontSize: 28,
     fontWeight: '900',
-    color: LP.text,
     letterSpacing: 1.5,
   },
 });

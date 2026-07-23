@@ -1,67 +1,317 @@
 [
   {
+    "name": "Air Conditioner (1.0 HP Split-Type)",
+    "icon": "snow-outline",
+    "watts": 1200,
+    "category": "Cooling & Climate Control",
+    "aliases": ["ac", "aircon", "aircon 1hp", "split type", "air conditioning"]
+  },
+  {
+    "name": "Air Conditioner (1.5 HP Split-Type)",
+    "icon": "snow-outline",
+    "watts": 1500,
+    "category": "Cooling & Climate Control",
+    "aliases": ["ac 1.5hp", "aircon 1.5hp", "split type 1.5"]
+  },
+  {
+    "name": "Air Conditioner (Window-Type 0.5 HP)",
+    "icon": "snow-outline",
+    "watts": 500,
+    "category": "Cooling & Climate Control",
+    "aliases": ["window ac", "window aircon", "window type"]
+  },
+  {
+    "name": "Air Conditioner (Window-Type 1.0 HP)",
+    "icon": "snow-outline",
+    "watts": 1000,
+    "category": "Cooling & Climate Control",
+    "aliases": ["window ac 1hp", "window aircon 1hp"]
+  },
+  {
+    "name": "Inverter Refrigerator",
+    "icon": "cube-outline",
+    "watts": 100,
+    "category": "Cooling & Climate Control",
+    "aliases": ["inverter fridge", "inverter ref", "refrigerator inverter"]
+  },
+  {
     "name": "Refrigerator",
     "icon": "cube-outline",
-    "watts": 200
+    "watts": 200,
+    "category": "Cooling & Climate Control",
+    "aliases": ["fridge", "ref", "refrigerator non-inverter"]
   },
   {
-    "name": "Air Conditioner (1-ton)",
-    "icon": "snow-outline",
-    "watts": 1200
+    "name": "Freezer (Chest/Upright)",
+    "icon": "cube-outline",
+    "watts": 200,
+    "category": "Cooling & Climate Control",
+    "aliases": ["chest freezer", "upright freezer", "deep freezer"]
   },
   {
-    "name": "Television (LED, 55-inch)",
-    "icon": "tv-outline",
-    "watts": 60
-  },
-  {
-    "name": "Washing Machine",
-    "icon": "shirt-outline",
-    "watts": 500
-  },
-  {
-    "name": "Microwave Oven",
-    "icon": "restaurant-outline",
-    "watts": 1000
-  },
-  {
-    "name": "Electric Fan",
+    "name": "Stand Fan",
     "icon": "send-outline",
-    "watts": 50
+    "watts": 55,
+    "category": "Cooling & Climate Control",
+    "aliases": ["electric fan", "fan", "pedestal fan"]
+  },
+  {
+    "name": "Desk Fan",
+    "icon": "send-outline",
+    "watts": 35,
+    "category": "Cooling & Climate Control",
+    "aliases": ["table fan", "small fan", "personal fan"]
+  },
+  {
+    "name": "Ceiling Fan",
+    "icon": "send-outline",
+    "watts": 70,
+    "category": "Cooling & Climate Control",
+    "aliases": ["ceiling fan"]
+  },
+  {
+    "name": "Air Purifier",
+    "icon": "leaf-outline",
+    "watts": 50,
+    "category": "Cooling & Climate Control",
+    "aliases": ["air purifier", "hepa", "air cleaner"]
+  },
+  {
+    "name": "Dehumidifier",
+    "icon": "water-outline",
+    "watts": 280,
+    "category": "Cooling & Climate Control",
+    "aliases": ["dehumidifier", "dehumidifier"]
+  },
+  {
+    "name": "Television (LED 43\")",
+    "icon": "tv-outline",
+    "watts": 50,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["tv", "led tv", "television", "smart tv"]
+  },
+  {
+    "name": "Television (LED 55\")",
+    "icon": "tv-outline",
+    "watts": 120,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["tv 55", "55 inch tv", "smart tv 55"]
+  },
+  {
+    "name": "Television (LED 65\")",
+    "icon": "tv-outline",
+    "watts": 200,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["tv 65", "65 inch tv", "smart tv 65"]
+  },
+  {
+    "name": "Desktop PC (Gaming)",
+    "icon": "desktop-outline",
+    "watts": 550,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["gaming pc", "gaming desktop", "pc gaming"]
+  },
+  {
+    "name": "Desktop PC (Workstation)",
+    "icon": "desktop-outline",
+    "watts": 300,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["desktop computer", "pc", "workstation", "computer"]
   },
   {
     "name": "Laptop",
     "icon": "laptop-outline",
-    "watts": 65
+    "watts": 65,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["notebook", "macbook", "ultrabook", "laptop computer"]
   },
   {
-    "name": "Desktop Computer",
-    "icon": "desktop-outline",
-    "watts": 300
+    "name": "Gaming Console (PS5/Xbox Series X)",
+    "icon": "game-controller-outline",
+    "watts": 200,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["ps5", "xbox", "playstation", "nintendo", "console"]
   },
   {
-    "name": "Light Bulb (LED)",
-    "icon": "bulb-outline",
-    "watts": 10
+    "name": "Wi-Fi Router",
+    "icon": "wifi-outline",
+    "watts": 12,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["router", "wifi", "modem", "access point"]
   },
   {
-    "name": "Water Heater",
+    "name": "CCTV System & NVR",
+    "icon": "videocam-outline",
+    "watts": 35,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["cctv", "security camera", "nvr", "ip camera"]
+  },
+  {
+    "name": "UPS (Uninterruptible Power Supply)",
+    "icon": "battery-charging-outline",
+    "watts": 20,
+    "category": "Entertainment, Computing & Tech",
+    "aliases": ["ups", "battery backup", "avr"]
+  },
+  {
+    "name": "Microwave Oven",
+    "icon": "restaurant-outline",
+    "watts": 1000,
+    "category": "Kitchen Appliances",
+    "aliases": ["microwave", "microwave oven", "convection microwave"]
+  },
+  {
+    "name": "Induction Cooktop",
+    "icon": "flame-outline",
+    "watts": 2000,
+    "category": "Kitchen Appliances",
+    "aliases": ["induction", "induction stove", "induction cooker", "electric stove"]
+  },
+  {
+    "name": "Electric Kettle",
+    "icon": "flask-outline",
+    "watts": 1500,
+    "category": "Kitchen Appliances",
+    "aliases": ["kettle", "electric kettle", "water kettle"]
+  },
+  {
+    "name": "Coffee Maker / Espresso Machine",
+    "icon": "cafe-outline",
+    "watts": 1000,
+    "category": "Kitchen Appliances",
+    "aliases": ["coffee maker", "coffee", "espresso", "brewer"]
+  },
+  {
+    "name": "Dishwasher",
     "icon": "water-outline",
-    "watts": 3000
+    "watts": 1800,
+    "category": "Kitchen Appliances",
+    "aliases": ["dishwasher", "dish washer"]
+  },
+  {
+    "name": "Toaster / OTG",
+    "icon": "restaurant-outline",
+    "watts": 1200,
+    "category": "Kitchen Appliances",
+    "aliases": ["toaster", "otg", "oven toaster", "toaster oven"]
+  },
+  {
+    "name": "Blender / Food Processor",
+    "icon": "fast-food-outline",
+    "watts": 600,
+    "category": "Kitchen Appliances",
+    "aliases": ["blender", "food processor", "smoothie maker"]
+  },
+  {
+    "name": "Air Fryer",
+    "icon": "restaurant-outline",
+    "watts": 1600,
+    "category": "Kitchen Appliances",
+    "aliases": ["air fryer", "airfryer"]
   },
   {
     "name": "Rice Cooker",
     "icon": "pizza-outline",
-    "watts": 400
+    "watts": 400,
+    "category": "Kitchen Appliances",
+    "aliases": ["rice cooker", "rice", "rice dispenser"]
   },
   {
-    "name": "Blender",
-    "icon": "fast-food-outline",
-    "watts": 300
+    "name": "Washing Machine (Front/Top Load)",
+    "icon": "shirt-outline",
+    "watts": 550,
+    "category": "Laundry & Cleaning",
+    "aliases": ["washing machine", "washer", "front load", "top load", "labandera"]
   },
   {
-    "name": "Coffee Maker",
-    "icon": "cafe-outline",
-    "watts": 800
+    "name": "Clothes Dryer (Tumble)",
+    "icon": "shirt-outline",
+    "watts": 3000,
+    "category": "Laundry & Cleaning",
+    "aliases": ["clothes dryer", "tumble dryer", "dryer", "laundry dryer"]
+  },
+  {
+    "name": "Vacuum Cleaner",
+    "icon": "trash-outline",
+    "watts": 1200,
+    "category": "Laundry & Cleaning",
+    "aliases": ["vacuum", "vacuum cleaner", "upright vacuum"]
+  },
+  {
+    "name": "Robot Vacuum",
+    "icon": "trash-outline",
+    "watts": 30,
+    "category": "Laundry & Cleaning",
+    "aliases": ["robot vacuum", "roborock", "roomba", "automatic vacuum"]
+  },
+  {
+    "name": "Electric Flat Iron",
+    "icon": "shirt-outline",
+    "watts": 1500,
+    "category": "Laundry & Cleaning",
+    "aliases": ["flat iron", "pants iron", "clothes iron", "plantsa"]
+  },
+  {
+    "name": "Garment Steamer",
+    "icon": "shirt-outline",
+    "watts": 1500,
+    "category": "Laundry & Cleaning",
+    "aliases": ["steamer", "garment steamer", "clothes steamer"]
+  },
+  {
+    "name": "Instant Electric Shower Heater",
+    "icon": "water-outline",
+    "watts": 4500,
+    "category": "Bathroom & Water Heating",
+    "aliases": ["shower heater", "instant heater", "electric shower", "water heater"]
+  },
+  {
+    "name": "Storage Water Heater (Boiler)",
+    "icon": "water-outline",
+    "watts": 2000,
+    "category": "Bathroom & Water Heating",
+    "aliases": ["storage heater", "boiler", "water boiler", "tank heater"]
+  },
+  {
+    "name": "Hair Dryer",
+    "icon": "man-outline",
+    "watts": 1500,
+    "category": "Bathroom & Water Heating",
+    "aliases": ["hair dryer", "blow dryer", "blower", "hairdryer"]
+  },
+  {
+    "name": "Hair Straightener",
+    "icon": "man-outline",
+    "watts": 100,
+    "category": "Bathroom & Water Heating",
+    "aliases": ["straightener", "hair iron", "flat iron hair"]
+  },
+  {
+    "name": "Water Dispenser (Hot & Cold)",
+    "icon": "water-outline",
+    "watts": 500,
+    "category": "Bathroom & Water Heating",
+    "aliases": ["water dispenser", "dispenser", "water cooler"]
+  },
+  {
+    "name": "Light Bulb (LED)",
+    "icon": "bulb-outline",
+    "watts": 10,
+    "category": "Miscellaneous & Lighting",
+    "aliases": ["led bulb", "light", "bulb", "led light"]
+  },
+  {
+    "name": "Aquarium Pump & Heater",
+    "icon": "fish-outline",
+    "watts": 100,
+    "category": "Miscellaneous & Lighting",
+    "aliases": ["aquarium", "fish tank", "aquarium pump", "aquarium heater"]
+  },
+  {
+    "name": "Electric Gate / Garage Door Motor",
+    "icon": "lock-closed-outline",
+    "watts": 450,
+    "category": "Miscellaneous & Lighting",
+    "aliases": ["gate motor", "garage door", "electric gate", "automatic gate"]
   }
 ]

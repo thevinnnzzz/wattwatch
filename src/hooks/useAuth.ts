@@ -123,6 +123,23 @@ export function useAuth() {
     return { data, error };
   }, []);
 
+  const refreshProfile = useCallback(async () => {
+    if (!user?.id) return;
+    setLoading(true);
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (profile) setProfile(profile);
+    } catch (error) {
+      console.error('Profile refresh error:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, setProfile, setLoading]);
+
   return {
     user,
     session,
@@ -134,5 +151,6 @@ export function useAuth() {
     signOut,
     resetPassword,
     updatePassword,
+    refreshProfile,
   };
 }

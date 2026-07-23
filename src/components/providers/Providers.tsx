@@ -3,9 +3,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { PaperProvider } from 'react-native-paper';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { paperTheme, paperDarkTheme } from '@/constants/paperTheme';
-import { useColorScheme } from 'react-native';
-import { useAppStore } from '@/store/appStore';
+import { paperTheme } from '@/constants/paperTheme';
 import { queryClient } from '@/lib/query-client';
 
 // expo-notifications push functionality was removed from Expo Go starting SDK 53.
@@ -34,21 +32,16 @@ if (Notifications && !notificationHandlerSet) {
 import { useNotifications } from '@/hooks/useNotifications';
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  const colorScheme = useColorScheme();
-  const theme = useAppStore((state) => state.theme);
-
   // Register for push notifications — this runs the push token registration
   // and saves the Expo push token to the user's Supabase profile.
   // The hook internally handles the Expo Go vs dev-build distinction.
   useNotifications();
 
-  const resolvedTheme = theme === 'system' ? (colorScheme ?? 'light') : theme;
-
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
-          <PaperProvider theme={resolvedTheme === 'dark' ? paperDarkTheme : paperTheme}>
+          <PaperProvider theme={paperTheme}>
             {children}
           </PaperProvider>
         </QueryClientProvider>

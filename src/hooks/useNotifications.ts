@@ -1,6 +1,7 @@
 // Notifications hook for push notifications
 import { useEffect, useState, useRef } from 'react';
-import { Platform, Alert } from 'react-native';
+import { Platform } from 'react-native';
+import { showAppAlert } from '@/components/ui/AppAlert';
 import { supabase } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 
@@ -83,7 +84,7 @@ export function useNotifications() {
 
       if (finalStatus !== 'granted') {
         console.log('Push notification permission not granted.');
-        Alert.alert('Notifications', 'Please enable notifications in Settings to receive alerts.');
+        showAppAlert({ title: 'Notifications', message: 'Please enable notifications in Settings to receive alerts.', type: 'info' });
         return;
       }
 
@@ -104,19 +105,10 @@ export function useNotifications() {
         }
       }
 
-      // Send a test local notification so we can verify notifications are working on-device
-      await N().scheduleNotificationAsync({
-        content: {
-          title: 'Notifications Ready',
-          body: 'You will now receive alerts from PowerConnect.',
-          sound: true,
-        },
-        trigger: null,
-      });
-      console.log('Test local notification sent — check your device.');
+
     } catch (err) {
       console.error('Error during push token registration:', err);
-      Alert.alert('Notification Error', String(err));
+      showAppAlert({ title: 'Notification Error', message: String(err), type: 'error' });
     }
   };
 
@@ -124,7 +116,7 @@ export function useNotifications() {
     if (!Notifications) return;
     try {
       await N().scheduleNotificationAsync({
-        content: { title, body, data, sound: true },
+        content: { title, body, data, icon: 'icon', sound: true },
         trigger: null,
       });
     } catch (err) {
@@ -141,7 +133,7 @@ export function useNotifications() {
     if (!Notifications) return;
     try {
       await N().scheduleNotificationAsync({
-        content: { title, body, data, sound: true },
+        content: { title, body, data, icon: 'icon', sound: true },
         trigger,
       });
     } catch (err) {
@@ -158,7 +150,7 @@ export function useNotifications() {
 
     if (error || !data?.expo_push_token) {
       console.warn('sendPushNotification: Could not retrieve push token for user:', userId, error);
-      Alert.alert('Push Error', 'No push token found for this user. Has the user registered on a physical device?');
+      showAppAlert({ title: 'Push Error', message: 'No push token found for this user. Has the user registered on a physical device?', type: 'error' });
       return;
     }
 
@@ -174,12 +166,12 @@ export function useNotifications() {
 
     if (funcError) {
       console.error('sendPushNotification: Edge function error:', funcError);
-      Alert.alert('Push Error', `Edge function error: ${funcError.message}`);
+      showAppAlert({ title: 'Push Error', message: `Edge function error: ${funcError.message}`, type: 'error' });
       return;
     }
 
     console.log('Edge function response:', funcData);
-    Alert.alert('Push Sent', `Response: ${JSON.stringify(funcData)}`);
+    showAppAlert({ title: 'Push Sent', message: `Response: ${JSON.stringify(funcData)}`, type: 'success' });
   };
 
   return {

@@ -1,21 +1,19 @@
 import { Tabs } from 'expo-router';
-import { useColorScheme } from 'react-native';
-import { Colors } from '@/constants/theme';
-import { LP } from '@/constants/loginPalette';
+import { usePalette } from '@/constants/usePalette';
 import TabBarIcon from './layout/TabBarIcon';
 
 export default function AppTabs() {
-  const scheme = useColorScheme();
+  const p = usePalette();
 
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: LP.gold,
-        tabBarInactiveTintColor: LP.textMuted,
+        tabBarActiveTintColor: p.gold,
+        tabBarInactiveTintColor: p.textMuted,
         tabBarStyle: {
-          backgroundColor: LP.bg,
-          borderTopColor: LP.divider,
+          backgroundColor: p.bg,
+          borderTopColor: p.divider,
         },
         tabBarLabelStyle: {
           fontSize: 11,
@@ -60,7 +58,6 @@ export default function AppTabs() {
         }}
       />
 
-      {/* Hidden screens — accessible via router.push but not shown in tab bar */}
       <Tabs.Screen
         name="add-appliance"
         options={{ href: null }}
@@ -71,6 +68,14 @@ export default function AppTabs() {
       />
       <Tabs.Screen
         name="notifications"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="admin"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
+        name="about"
         options={{ href: null }}
       />
     </Tabs>

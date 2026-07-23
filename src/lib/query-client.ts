@@ -34,7 +34,7 @@ export const queryKeys = {
 
   energy: {
     logs: (userId: string, from: string, to: string) => ['energy', 'logs', userId, from, to] as const,
-    dashboard: (userId: string) => ['energy', 'dashboard', userId] as const,
+    dashboard: (userId: string, excludeDemo = false) => ['energy', 'dashboard', userId, excludeDemo] as const,
     budget: (userId: string) => ['energy', 'budget', userId] as const,
     budgetAlert: (userId: string) => ['energy', 'budgetAlert', userId] as const,
     rate: () => ['energy', 'rate'] as const,
@@ -48,6 +48,11 @@ export const queryKeys = {
   notifications: {
     all: (userId: string) => ['notifications', 'all', userId] as const,
     unreadCount: (userId: string) => ['notifications', 'unreadCount', userId] as const,
+  },
+
+  admin: {
+    config: () => ['admin', 'config'] as const,
+    ratePlan: () => ['admin', 'ratePlan'] as const,
   },
 };
 

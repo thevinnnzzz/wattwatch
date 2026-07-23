@@ -18,6 +18,7 @@ export interface Database {
           email: string | null;
           address: string | null;
           avatar_url: string | null;
+          role: string;
           created_at: string;
           updated_at: string;
         };
@@ -28,6 +29,7 @@ export interface Database {
           email?: string | null;
           address?: string | null;
           avatar_url?: string | null;
+          role?: string;
           created_at?: string;
           updated_at?: string;
         };
@@ -38,7 +40,7 @@ export interface Database {
           email?: string | null;
           address?: string | null;
           avatar_url?: string | null;
-          created_at?: string;
+          role?: string;
           updated_at?: string;
         };
       };
@@ -112,6 +114,7 @@ export interface Database {
           kwh_consumed: number;
           cost_per_day: number;
           date: string; // YYYY-MM-DD
+          is_demo: boolean;
           created_at: string;
         };
         Insert: {
@@ -121,6 +124,7 @@ export interface Database {
           kwh_consumed: number;
           cost_per_day?: number;
           date?: string;
+          is_demo?: boolean;
           created_at?: string;
         };
         Update: {
@@ -130,6 +134,7 @@ export interface Database {
           kwh_consumed?: number;
           cost_per_day?: number;
           date?: string;
+          is_demo?: boolean;
         };
       };
       budgets: {
@@ -257,6 +262,26 @@ export interface Database {
           updated_at?: string;
         };
       };
+      admin_config: {
+        Row: {
+          id: string;
+          generate_data_enabled: boolean;
+          updated_at: string;
+          updated_by: string | null;
+        };
+        Insert: {
+          id?: string;
+          generate_data_enabled?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+        Update: {
+          id?: string;
+          generate_data_enabled?: boolean;
+          updated_at?: string;
+          updated_by?: string | null;
+        };
+      };
     };
     Views: {
       [_ in never]: never;
@@ -300,6 +325,8 @@ export type NotificationUpdate = Database['public']['Tables']['notifications']['
 export type Settings = Database['public']['Tables']['settings']['Row'];
 export type SettingsInsert = Database['public']['Tables']['settings']['Insert'];
 export type SettingsUpdate = Database['public']['Tables']['settings']['Update'];
+
+export type AdminConfig = Database['public']['Tables']['admin_config']['Row'];
 
 // Enums
 export type NotificationType = Database['public']['Enums']['notification_type'];

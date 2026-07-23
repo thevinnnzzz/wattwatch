@@ -1,24 +1,36 @@
 import { ThemedText } from '@/components/themed-text';
 import { ThemedView } from '@/components/themed-view';
+import { Button } from '@/components/ui/Button';
 import { EmptyState } from '@/components/ui/EmptyState';
 import Spinner from '@/components/ui/Loading';
-import { LP } from '@/constants/loginPalette';
+import { usePalette } from '@/constants/usePalette';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useMarkNotificationRead, useNotifications } from '@/hooks/useSupabaseQuery';
 import { useNotifications as usePushNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
-import { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, View, Button } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { FlatList, Pressable, StyleSheet, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotificationsScreen() {
   const { profile } = useAuth();
-  const { data, isLoading } = useNotifications(profile?.id ?? '');
+  const { data, isLoading, refetch: refetchNotifications } = useNotifications(profile?.id ?? '');
   const { mutate: markRead } = useMarkNotificationRead();
   const { sendLocalNotification, sendPushNotification } = usePushNotifications();
+  const p = usePalette();
 
-  const notifications = data ?? [];
+  const [refreshing, setRefreshing] = useState(false);
+
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await refetchNotifications();
+    setRefreshing(false);
+  }, [refetchNotifications]);
+
+  const notifications = (data ?? []).filter(
+    (item, index, arr) => index === arr.findIndex((n) => n.title === item.title && n.message === item.message)
+  );
 
   const handleMarkRead = useCallback((item: any) => {
     if (!item.is_read) {
@@ -26,23 +38,36 @@ export default function NotificationsScreen() {
     }
   }, [markRead]);
 
+  const handleMarkAllRead = useCallback(() => {
+    const unread = notifications.filter((n: any) => !n.is_read);
+    unread.forEach((n: any) => markRead(n.id));
+  }, [notifications, markRead]);
+
+  useEffect(() => {
+    if (!data || data.length === 0) return;
+    const unread = data.filter((n: any) => !n.is_read);
+    if (unread.length > 0) {
+      unread.forEach((n: any) => markRead(n.id));
+    }
+  }, [data, markRead]);
+
   const renderItem = ({ item }: { item: any }) => (
     <Pressable
       style={[styles.notificationItem, !item.is_read && styles.notificationUnread]}
       onPress={() => handleMarkRead(item)}
     >
       <View style={{ flex: 1 }}>
-        <ThemedText style={{ fontWeight: 'bold', color: !item.is_read ? LP.text : LP.textMuted }}>
+        <ThemedText style={{ fontWeight: 'bold', color: !item.is_read ? p.text : p.textMuted }}>
           {item.title}
         </ThemedText>
-        <ThemedText style={{ color: !item.is_read ? LP.text : LP.textMuted }}>
+        <ThemedText style={{ color: !item.is_read ? p.text : p.textMuted }}>
           {item.message}
         </ThemedText>
-        <ThemedText style={{ fontSize: 11, color: LP.textMuted, marginTop: Spacing.one }}>
+        <ThemedText style={{ fontSize: 11, color: p.textMuted, marginTop: Spacing.one }}>
           {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}
         </ThemedText>
       </View>
-      {!item.is_read && <View style={styles.unreadDot} />}
+      {!item.is_read && <View style={[styles.unreadDot, { backgroundColor: p.gold }]} />}
     </Pressable>
   );
 
@@ -51,24 +76,13 @@ export default function NotificationsScreen() {
   }
 
   return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: LP.bg }}>
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }}>
       <ThemedView style={styles.container}>
         <ThemedView style={styles.header}>
           <ThemedText type="title">Notifications</ThemedText>
-          <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two }}>
-            <Button
-              title="Test Local"
-              onPress={() => sendLocalNotification('Test', 'This is a local notification test.')}
-            />
-            <Button
-              title="Test Push"
-              onPress={() => {
-                if (profile?.id) {
-                  sendPushNotification(profile.id, 'Push Test', 'This is a remote push notification test.');
-                }
-              }}
-            />
-          </View>
+          {notifications.some((n: any) => !n.is_read) && (
+            <Button title="Mark All Read" size="sm" variant="outline" onPress={handleMarkAllRead} />
+          )}
         </ThemedView>
         {notifications.length === 0 ? (
           <EmptyState title="No Notifications" description="Important alerts and updates will appear here." />
@@ -77,7 +91,9 @@ export default function NotificationsScreen() {
             data={notifications}
             renderItem={renderItem}
             keyExtractor={(item) => item.id}
-            ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: LP.divider }} />}
+            ItemSeparatorComponent={() => <View style={{ height: 1, backgroundColor: p.divider }} />}
+            refreshing={refreshing}
+            onRefresh={onRefresh}
           />
         )}
       </ThemedView>
@@ -87,7 +103,7 @@ export default function NotificationsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, padding: Spacing.four, gap: Spacing.four },
-  header: { alignItems: 'center', paddingBottom: Spacing.three },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingBottom: Spacing.three },
   notificationItem: {
     padding: Spacing.three,
     backgroundColor: 'rgba(255,255,255,0.05)',
@@ -105,6 +121,5 @@ const styles = StyleSheet.create({
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: LP.gold,
   },
 });

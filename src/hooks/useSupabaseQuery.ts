@@ -1,10 +1,32 @@
 // Supabase query hooks wrapper for TanStack Query
 import { queryClient, queryKeys } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
-import { applianceService, budgetService, energyService, rateService } from '@/services';
+import { adminService, applianceService, budgetService, energyService, rateService } from '@/services';
 import type { BudgetAlert } from '@/services/budgetService';
 import type { Appliance } from '@/types/database';
+import { Platform } from 'react-native';
+import { showAppAlert } from '@/components/ui/AppAlert';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+
+// Lazy-load expo-notifications (may not be available in Expo Go)
+let ExpoNotifications: any = null;
+try {
+  ExpoNotifications = require('expo-notifications');
+} catch {
+  // expo-notifications not available — local push skipped silently
+}
+
+const sendLocalPush = async (title: string, body: string, data?: any) => {
+  if (!ExpoNotifications || Platform.OS === 'web') return;
+  try {
+    await ExpoNotifications.scheduleNotificationAsync({
+      content: { title, body, icon: 'icon', sound: true, data },
+      trigger: null,
+    });
+  } catch {
+    // local push failed silently
+  }
+};
 
 // Generic query hooks
 export function useSupabaseQuery<T>(
@@ -22,7 +44,7 @@ export function useSupabaseQuery<T>(
 export function useSupabaseMutation<TData, TVariables>(
   mutationFn: (variables: TVariables) => Promise<{ data: TData | null; error: any }>,
   options?: {
-    onSuccess?: (data: TData | null) => void;
+    onSuccess?: (data: TData | null, variables: TVariables) => void;
     onError?: (error: any) => void;
     invalidateKeys?: readonly (readonly unknown[])[];
   }
@@ -35,11 +57,11 @@ export function useSupabaseMutation<TData, TVariables>(
       if (error) throw error;
       return data;
     },
-    onSuccess: (data) => {
+    onSuccess: (data, variables) => {
       if (options?.invalidateKeys) {
         options.invalidateKeys.forEach(key => client.invalidateQueries({ queryKey: key }));
       }
-      options?.onSuccess?.(data);
+      options?.onSuccess?.(data, variables);
     },
     onError: options?.onError,
   });
@@ -89,10 +111,10 @@ export function useEnergyLogs(userId: string, startDate: string, endDate: string
   );
 }
 
-export function useDashboardStats(userId: string) {
+export function useDashboardStats(userId: string, excludeDemo = false) {
   return useSupabaseQuery(
-    queryKeys.energy.dashboard(userId),
-    () => energyService.getDashboardStats(userId),
+    queryKeys.energy.dashboard(userId, excludeDemo),
+    () => energyService.getDashboardStats(userId, excludeDemo),
     { enabled: !!userId }
   );
 }
@@ -200,13 +222,78 @@ export function useGenerateLogsForAppliance() {
 }
 
 export function useGenerateEnergyLogs() {
+  const client = useQueryClient();
+
   return useSupabaseMutation(
     (userId: string) => energyService.generateDailyEnergyLogs(userId),
     {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['energy'] });
+      invalidateKeys: [['energy'] as const],
+      onSuccess: (_data, userId) => {
+        const title = 'Data Generated';
+        const body = 'Energy usage data has been generated successfully for your active appliances.';
+
+        supabase.from('notifications').insert({
+          user_id: userId,
+          title,
+          message: body,
+          type: 'energy_data',
+          is_read: false,
+        }).then(() => {
+          client.invalidateQueries({ queryKey: queryKeys.notifications.all(userId) });
+          client.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(userId) });
+        });
+
+        showAppAlert({ title, message: body, type: 'success' });
+        sendLocalPush(title, body, { url: '/(app)/notifications' });
+      },
+      onError: (error: any) => {
+        const title = 'Unable to Generate Data';
+        const body = error?.message || 'Please ensure you have at least one active appliance with recorded usage.';
+        showAppAlert({ title, message: body, type: 'error' });
+        sendLocalPush(title, body, { url: '/(app)/notifications' });
       },
     }
+  );
+}
+
+// ─── Admin hooks ────────────────────────────────────────────────────────
+
+export function useAdminConfig() {
+  return useSupabaseQuery(
+    queryKeys.admin.config(),
+    () => adminService.getAdminConfig(),
+  );
+}
+
+export function useUpdateAdminConfig() {
+  const queryClient = useQueryClient();
+  return useSupabaseMutation(
+    ({ generateDataEnabled, adminId }: { generateDataEnabled: boolean; adminId: string }) =>
+      adminService.updateAdminConfig({ generate_data_enabled: generateDataEnabled }, adminId),
+    {
+      invalidateKeys: [['admin']],
+    }
+  );
+}
+
+export function useUpdateRate() {
+  const queryClient = useQueryClient();
+  return useSupabaseMutation(
+    ({ rateId, ratePerKwh }: { rateId: string; ratePerKwh: number }) =>
+      adminService.updateRate(rateId, ratePerKwh),
+    {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: queryKeys.energy.rate() });
+        queryClient.invalidateQueries({ queryKey: queryKeys.admin.ratePlan() });
+      },
+    }
+  );
+}
+
+export function useActiveRatePlan() {
+  return useSupabaseQuery(
+    queryKeys.admin.ratePlan(),
+    () => adminService.getActiveRatePlan(),
   );
 }
 

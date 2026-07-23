@@ -226,6 +226,8 @@ export const buildApplianceBreakdown = (
  * Generates contextual energy-saving tips based on usage.
  */
 export const generateTips = (appliances: Appliance[], rate: number): string[] => {
+  if (appliances.length === 0) return [];
+
   const tips: string[] = [];
   const topConsumers = getTopConsumers(appliances, rate, 3);
 
