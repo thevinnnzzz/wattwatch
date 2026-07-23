@@ -1,6 +1,7 @@
 // Supabase configuration and client setup
 import { createClient } from '@supabase/supabase-js';
 import { Platform } from 'react-native';
+import * as Linking from 'expo-linking';
 
 // Conditional import for expo-secure-store (not available on web)
 let SecureStore: any = null;
@@ -114,7 +115,7 @@ export const auth = {
       password,
       options: {
         data: options?.data,
-        emailRedirectTo: 'powerconnect://verify-email',
+        emailRedirectTo: Linking.createURL('/(auth)/verify'),
       },
     });
     return { data, error };
@@ -129,7 +130,7 @@ export const auth = {
   // Reset password request
   resetPassword: async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'powerconnect://reset-password',
+      redirectTo: Linking.createURL('/(auth)/update-password'),
     });
     return { data, error };
   },
@@ -156,7 +157,7 @@ export const auth = {
       type: 'signup',
       email,
       options: {
-        emailRedirectTo: 'powerconnect://verify-email',
+        emailRedirectTo: Linking.createURL('/(auth)/verify'),
       },
     });
     return { data, error };

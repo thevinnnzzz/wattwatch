@@ -86,8 +86,7 @@ export default function LoginScreen() {
       if (error) {
         showAppAlert({ title: 'Login Failed', message: error.message, type: 'error' });
       } else {
-        showAppAlert({ title: 'Welcome Back', message: 'You have signed in successfully.', type: 'success' });
-        router.replace('/(app)/');
+        showAppAlert({ title: 'Welcome Back', message: 'You have signed in successfully.', type: 'success', onDismiss: () => router.replace('/(app)/') });
       }
     } catch {
       showAppAlert({ title: 'Login Error', message: 'An unexpected error occurred.', type: 'error' });

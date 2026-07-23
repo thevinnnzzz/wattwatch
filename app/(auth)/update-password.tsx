@@ -1,8 +1,9 @@
 import { supabase } from '@/lib/supabase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -57,6 +58,39 @@ export default function UpdatePasswordScreen() {
   const p = usePalette();
   const styles = createStyles(p);
   const [loading, setLoading] = useState(false);
+  const [verifying, setVerifying] = useState(true);
+
+  useEffect(() => {
+    const handleDeepLink = async () => {
+      try {
+        const url = await Linking.getInitialURL();
+        if (!url) {
+          setVerifying(false);
+          return;
+        }
+
+        const fragment = url.split('#')[1] || '';
+        const fragmentParams = new URLSearchParams(fragment);
+        const accessToken = fragmentParams.get('access_token');
+        const refreshToken = fragmentParams.get('refresh_token');
+
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (error) throw error;
+        }
+      } catch {
+        showAppAlert({ title: 'Error', message: 'Invalid or expired reset link.', type: 'error' });
+        router.replace('/(auth)/forgot-password');
+      } finally {
+        setVerifying(false);
+      }
+    };
+
+    handleDeepLink();
+  }, []);
   const { control, handleSubmit, formState: { errors } } = useForm<UpdatePasswordForm>({
     resolver: zodResolver(updatePasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
@@ -69,8 +103,7 @@ export default function UpdatePasswordScreen() {
       if (error) {
         showAppAlert({ title: 'Error', message: error.message, type: 'error' });
       } else {
-        showAppAlert({ title: 'Password Updated', message: 'Your password has been successfully updated.', type: 'success' });
-        router.replace('/');
+        showAppAlert({ title: 'Password Updated', message: 'Your password has been successfully updated.', type: 'success', onDismiss: () => router.replace('/') });
       }
     } catch {
       showAppAlert({ title: 'Error', message: 'An unexpected error occurred.', type: 'error' });
@@ -78,6 +111,17 @@ export default function UpdatePasswordScreen() {
       setLoading(false);
     }
   };
+
+  if (verifying) {
+    return (
+      <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>
+        <View style={[styles.scroll, { justifyContent: 'center', alignItems: 'center' }]}>
+          <ActivityIndicator size="large" color={p.gold} />
+          <Text style={{ color: p.text, marginTop: 12, fontSize: 15 }}>Verifying your reset link...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={['top', 'bottom']}>

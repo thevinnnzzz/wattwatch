@@ -88,14 +88,13 @@ export default function RegisterScreen() {
           data: {
             full_name: data.name,
           },
-          emailRedirectTo: Linking.createURL('/(auth)/verify'),
+          emailRedirectTo: Linking.createURL('/verify'),
         },
       });
       if (error) {
         showAppAlert({ title: 'Sign Up Failed', message: error.message, type: 'error' });
       } else {
-        showAppAlert({ title: 'Sign Up Successful', message: 'Please check your email for a verification link.', type: 'success' });
-        router.replace('/(auth)/');
+        showAppAlert({ title: 'Sign Up Successful', message: 'Please check your email for a verification link.', type: 'success', onDismiss: () => router.replace('/(auth)/') });
       }
     } catch {
       showAppAlert({ title: 'Sign Up Error', message: 'An unexpected error occurred.', type: 'error' });

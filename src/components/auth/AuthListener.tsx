@@ -7,13 +7,8 @@ import { router } from 'expo-router';
 import { useSegments } from 'expo-router';
 
 export function AuthListener() {
-  const { user, initialized, initialize } = useAuthStore();
+  const { user, initialized } = useAuthStore();
   const segments = useSegments();
-
-  // Run store initialization on mount
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
 
   // Navigate based on auth state
   useEffect(() => {

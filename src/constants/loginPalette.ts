@@ -10,7 +10,7 @@ export const LP = {
   bg: '#FFFFFF',
 
   /** Primary text */
-  text: '#000000',
+  text: '#111827',
 
   /** Muted / secondary text */
   textMuted: '#6B7280',
@@ -19,18 +19,18 @@ export const LP = {
   placeholder: '#E5E7EB',
 
   /** Error / destructive */
-  error: '#DC2626',
+  error: '#FF5A5F',
 
   /** Navy — logo ring, nav accent, borders */
-  navy: '#1C3B6F',
+  navy: '#1E3A8A',
 
   /** Gold — gradient end, link accent */
-  gold: '#D4AF37',
+  gold: '#FF8C00',
   goldDark: '#D97706',
 
   /** Gradient: grey-to-gold — used for pills (inputs & buttons) */
-  gradientStart: '#4A4A4A',
-  gradientEnd: '#D4AF37',
+  gradientStart: '#1E3A8A',
+  gradientEnd: '#FF8C00',
 
   /** Input text (inside a gradient pill) */
   inputText: '#FFFFFF',
@@ -43,7 +43,7 @@ export const LP = {
   divider: '#E5E7EB',
 
   /** Ambient lightning-bolt amber */
-  amber: '#F59E0B',
+  amber: '#FBC531',
 } as const;
 
 /** Array form of the horizontal gradient for LinearGradient */

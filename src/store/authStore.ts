@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import { supabase } from '@/lib/supabase';
+import * as Linking from 'expo-linking';
 import type { Profile, User } from '@supabase/supabase-js';
 
 interface AuthState {
@@ -73,6 +74,7 @@ export const useAuthStore = create<AuthState>()(
                 full_name: userData.fullName,
                 phone_number: userData.phoneNumber,
               },
+              emailRedirectTo: Linking.createURL('/(auth)/verify'),
             },
           });
           if (error) throw error;
@@ -102,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true });
         try {
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: 'powerconnect://reset-password',
+            redirectTo: Linking.createURL('/(auth)/update-password'),
           });
           if (error) throw error;
           return { error: null };

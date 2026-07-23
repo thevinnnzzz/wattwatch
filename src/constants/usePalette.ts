@@ -1,19 +1,19 @@
 export const lightPalette = {
   bg: '#FFFFFF',
-  text: '#000000',
+  text: '#111827',
   textMuted: '#6B7280',
   placeholder: '#E5E7EB',
-  error: '#DC2626',
-  navy: '#1C3B6F',
-  gold: '#D4AF37',
+  error: '#FF5A5F',
+  navy: '#1E3A8A',
+  gold: '#FF8C00',
   goldDark: '#D97706',
-  gradientStart: '#4A4A4A',
-  gradientEnd: '#D4AF37',
+  gradientStart: '#1E3A8A',
+  gradientEnd: '#FF8C00',
   inputText: '#FFFFFF',
   card: '#F9FAFB',
   cardBorder: '#E5E7EB',
   divider: '#E5E7EB',
-  amber: '#F59E0B',
+  amber: '#FBC531',
 } as const;
 
 export const darkPalette = {

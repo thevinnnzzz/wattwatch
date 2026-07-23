@@ -88,7 +88,7 @@ export function useAuth() {
             full_name: userData.fullName,
             phone_number: userData.phoneNumber,
           },
-          emailRedirectTo: Linking.createURL('/(auth)/verify-success'),
+          emailRedirectTo: Linking.createURL('/(auth)/verify'),
         },
       });
       return { data, error };
@@ -113,7 +113,7 @@ export function useAuth() {
 
   const resetPassword = useCallback(async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: Linking.createURL('/(auth)/reset-password'),
+      redirectTo: Linking.createURL('/(auth)/update-password'),
     });
     return { data, error };
   }, []);

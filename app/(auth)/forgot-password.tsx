@@ -1,6 +1,7 @@
 import { supabase } from '@/lib/supabase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
+import * as Linking from 'expo-linking';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
@@ -64,13 +65,12 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: '/(auth)/update-password',
+        redirectTo: Linking.createURL('/(auth)/update-password'),
       });
       if (error) {
         showAppAlert({ title: 'Error', message: error.message, type: 'error' });
       } else {
-        showAppAlert({ title: 'Password Reset Email Sent', message: 'Please check your email for a link to reset your password.', type: 'success' });
-        router.replace('/(auth)/');
+        showAppAlert({ title: 'Password Reset Email Sent', message: 'Please check your email for a link to reset your password.', type: 'success', onDismiss: () => router.replace('/(auth)/') });
       }
     } catch {
       showAppAlert({ title: 'Error', message: 'An unexpected error occurred.', type: 'error' });
