@@ -3,5 +3,7 @@
     "source.fixAll": "explicit",
     "source.organizeImports": "explicit",
     "source.sortMembers": "explicit"
-  }
+  },
+  "claudeCode.allowDangerouslySkipPermissions": true,
+  "claudeCode.useTerminal": true
 }

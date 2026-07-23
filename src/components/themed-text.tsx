@@ -1,20 +1,21 @@
 import { Platform, StyleSheet, Text, type TextProps } from 'react-native';
 
-import { Fonts, ThemeColor } from '@/constants/theme';
-import { useTheme } from '@/hooks/use-theme';
+import { Fonts, legacyColors } from '@/constants/theme';
+import { useColorScheme } from 'react-native';
 
 export type ThemedTextProps = TextProps & {
   type?: 'default' | 'title' | 'small' | 'smallBold' | 'subtitle' | 'link' | 'linkPrimary' | 'code';
-  themeColor?: ThemeColor;
+  themeColor?: keyof typeof legacyColors.light;
 };
 
 export function ThemedText({ style, type = 'default', themeColor, ...rest }: ThemedTextProps) {
-  const theme = useTheme();
+  const scheme = useColorScheme();
+  const colors = scheme === 'dark' ? legacyColors.dark : legacyColors.light;
 
   return (
     <Text
       style={[
-        { color: theme[themeColor ?? 'text'] },
+        { color: themeColor ? colors[themeColor] : colors.text },
         type === 'default' && styles.default,
         type === 'title' && styles.title,
         type === 'small' && styles.small,

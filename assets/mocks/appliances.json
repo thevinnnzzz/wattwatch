@@ -1,0 +1,67 @@
+[
+  {
+    "name": "Refrigerator",
+    "icon": "cube-outline",
+    "watts": 200
+  },
+  {
+    "name": "Air Conditioner (1-ton)",
+    "icon": "snow-outline",
+    "watts": 1200
+  },
+  {
+    "name": "Television (LED, 55-inch)",
+    "icon": "tv-outline",
+    "watts": 60
+  },
+  {
+    "name": "Washing Machine",
+    "icon": "shirt-outline",
+    "watts": 500
+  },
+  {
+    "name": "Microwave Oven",
+    "icon": "restaurant-outline",
+    "watts": 1000
+  },
+  {
+    "name": "Electric Fan",
+    "icon": "send-outline",
+    "watts": 50
+  },
+  {
+    "name": "Laptop",
+    "icon": "laptop-outline",
+    "watts": 65
+  },
+  {
+    "name": "Desktop Computer",
+    "icon": "desktop-outline",
+    "watts": 300
+  },
+  {
+    "name": "Light Bulb (LED)",
+    "icon": "bulb-outline",
+    "watts": 10
+  },
+  {
+    "name": "Water Heater",
+    "icon": "water-outline",
+    "watts": 3000
+  },
+  {
+    "name": "Rice Cooker",
+    "icon": "pizza-outline",
+    "watts": 400
+  },
+  {
+    "name": "Blender",
+    "icon": "fast-food-outline",
+    "watts": 300
+  },
+  {
+    "name": "Coffee Maker",
+    "icon": "cafe-outline",
+    "watts": 800
+  }
+]
