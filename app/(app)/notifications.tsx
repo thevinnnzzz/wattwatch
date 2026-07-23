@@ -6,15 +6,17 @@ import { LP } from '@/constants/loginPalette';
 import { Spacing } from '@/constants/theme';
 import { useAuth } from '@/hooks/useAuth';
 import { useMarkNotificationRead, useNotifications } from '@/hooks/useSupabaseQuery';
+import { useNotifications as usePushNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useCallback } from 'react';
-import { FlatList, Pressable, StyleSheet, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, View, Button } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 export default function NotificationsScreen() {
   const { profile } = useAuth();
   const { data, isLoading } = useNotifications(profile?.id ?? '');
   const { mutate: markRead } = useMarkNotificationRead();
+  const { sendLocalNotification, sendPushNotification } = usePushNotifications();
 
   const notifications = data ?? [];
 
@@ -53,6 +55,20 @@ export default function NotificationsScreen() {
       <ThemedView style={styles.container}>
         <ThemedView style={styles.header}>
           <ThemedText type="title">Notifications</ThemedText>
+          <View style={{ flexDirection: 'row', gap: Spacing.two, marginTop: Spacing.two }}>
+            <Button
+              title="Test Local"
+              onPress={() => sendLocalNotification('Test', 'This is a local notification test.')}
+            />
+            <Button
+              title="Test Push"
+              onPress={() => {
+                if (profile?.id) {
+                  sendPushNotification(profile.id, 'Push Test', 'This is a remote push notification test.');
+                }
+              }}
+            />
+          </View>
         </ThemedView>
         {notifications.length === 0 ? (
           <EmptyState title="No Notifications" description="Important alerts and updates will appear here." />

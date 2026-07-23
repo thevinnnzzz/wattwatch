@@ -173,11 +173,10 @@ export const useAuthStore = create<AuthState>()(
       },
 
       initialize: async () => {
-        if (get().initialized) return;
-
         set({ loading: true });
         try {
-          // Get initial session
+          // Get initial session directly from Supabase — this is the source
+          // of truth, NOT persisted Zustand state.
           const { data: { session } } = await supabase.auth.getSession();
           if (session?.user) {
             set({ session, user: session.user });
@@ -189,9 +188,13 @@ export const useAuthStore = create<AuthState>()(
               .eq('id', session.user.id)
               .single();
             if (profile) set({ profile });
+          } else {
+            // Ensure clean slate when no valid session exists
+            set({ session: null, user: null, profile: null });
           }
         } catch (error) {
           console.error('Auth init error:', error);
+          set({ session: null, user: null, profile: null });
         } finally {
           set({ loading: false, initialized: true });
         }
@@ -219,10 +222,19 @@ export const useAuthStore = create<AuthState>()(
     {
       name: 'auth-storage',
       storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        session: state.session,
-        user: state.user,
-      }),
+      // DO NOT persist user or session — stale sessions survive reinstalls
+      // and cause the app to skip login with invalid credentials.
+      partialize: () => ({}),
+      // On rehydration, clear any previously persisted user/session so
+      // the app always does a fresh Supabase session check on startup.
+      onRehydrateStorage: () => (state) => {
+        if (state) {
+          state.setUser(null);
+          state.setSession(null);
+          state.setProfile(null);
+          state.setInitialized(false);
+        }
+      },
     }
   )
 );

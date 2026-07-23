@@ -1,14 +1,16 @@
 {
   "expo": {
     "name": "WattWatch",
-    "slug": "wattwatch",
+    "slug": "Meralco-clone",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "wattwatch",
     "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0B0F1A",
     "ios": {
-      "icon": "./assets/expo.icon"
+      "icon": "./assets/expo.icon",
+      "backgroundColor": "#0B0F1A"
     },
     "android": {
       "adaptiveIcon": {
@@ -18,7 +20,9 @@
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "com.palogmejosh.myproject"
+      "package": "com.palogmejosh.myproject",
+      "googleServicesFile": "./google-services.json",
+      "backgroundColor": "#0B0F1A"
     },
     "web": {
       "output": "static",
@@ -33,7 +37,17 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 76
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/android-icon-monochrome.png",
+          "color": "#16A34A",
+          "defaultChannel": "default"
+        }
+      ],
+      "expo-sharing",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -44,6 +58,7 @@
       "eas": {
         "projectId": "9cb1e6ab-0bb1-4f63-aa32-c80a423683fd"
       }
-    }
+    },
+    "owner": "palogmejosh"
   }
 }

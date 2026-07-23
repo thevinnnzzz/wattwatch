@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "144980405727",
+    "project_id": "wattwatch-e8a15",
+    "storage_bucket": "wattwatch-e8a15.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:144980405727:android:dba51527455ab7d19a686a",
+        "android_client_info": {
+          "package_name": "com.palogmejosh.myproject"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDSDH_HYPrSHhx2cVsx9NhqP_CHZN1l_PE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
