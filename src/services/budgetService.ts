@@ -1,5 +1,4 @@
 // budgetService.ts - Manage user budgets and alert checking
-import { queryClient, queryKeys } from '@/lib/query-client';
 import { supabase } from '@/lib/supabase';
 import type { BudgetUpdate } from '@/types/database';
 
@@ -57,7 +56,7 @@ export const budgetService = {
    * and returns an alert result. Also creates a notification in the
    * database when the threshold is breached for the first time this month.
    */
-  checkBudgetAlerts: async (userId: string): Promise<BudgetAlert | null> => {
+  checkBudgetAlerts: async (userId: string, excludeDemo?: boolean): Promise<BudgetAlert | null> => {
     // 1. Get the user's budget
     const { data: budget, error: budgetErr } = await supabase
       .from('budgets')
@@ -72,28 +71,41 @@ export const budgetService = {
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
     const monthEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-31`;
 
-    const { data: logs, error: logsErr } = await supabase
-      .from('energy_logs')
-      .select('cost_per_day')
-      .eq('user_id', userId)
-      .gte('date', monthStart)
-      .lte('date', monthEnd);
+    const [logsResult, rateResult] = await Promise.all([
+      (() => {
+        let q = supabase
+          .from('energy_logs')
+          .select('kwh_consumed')
+          .eq('user_id', userId)
+          .gte('date', monthStart)
+          .lte('date', monthEnd);
+        if (excludeDemo) q = q.eq('is_demo', false);
+        return q;
+      })(),
+      supabase
+        .from('rate_plans')
+        .select('rate_per_kwh')
+        .eq('is_active', true)
+        .order('effective_from', { ascending: false })
+        .limit(1)
+        .single(),
+    ]);
 
-    if (logsErr) return null;
+    const logs = logsResult.data;
+    const rate = rateResult.data?.rate_per_kwh ?? 12.45;
 
-    const spent = (logs ?? []).reduce((sum, l) => sum + (l.cost_per_day || 0), 0);
+    if (logsResult.error || !logs) return null;
+
+    const totalKwh = logs.reduce((sum, l) => sum + (l.kwh_consumed || 0), 0);
+    const spent = totalKwh * rate;
     const limit = budget.monthly_limit;
     const thresholdPct = budget.alert_threshold_pct;
     const spentPct = limit > 0 ? (spent / limit) * 100 : 0;
 
     // 3. Determine alert level
     let alert: BudgetAlert;
-    let notifType: string;
-    let title: string;
 
     if (spentPct >= 100) {
-      notifType = 'budget_exceeded';
-      title = 'Budget Exceeded!';
       alert = {
         type: 'exceeded',
         spent: spent,
@@ -103,8 +115,6 @@ export const budgetService = {
         message: `You've exceeded your monthly budget of ₱${limit.toLocaleString()}! Total spending: ₱${spent.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
       };
     } else if (spentPct >= thresholdPct) {
-      notifType = 'budget_approaching';
-      title = 'Budget Alert';
       alert = {
         type: 'approaching',
         spent: spent,
@@ -117,32 +127,9 @@ export const budgetService = {
       return { type: 'ok', spent: spent, limit: limit, spentPct, thresholdPct, message: '' };
     }
 
-    // 4. Delete any old unread alerts of this type for this user
-    //    (so we only keep the latest one)
-    await supabase
-      .from('notifications')
-      .delete()
-      .eq('user_id', userId)
-      .eq('type', notifType)
-      .eq('is_read', false);
-
-    // 5. Always insert a fresh notification with latest budget data
-    const { error: insertNotifErr } = await supabase.from('notifications').insert({
-      user_id: userId,
-      title,
-      message: alert.message,
-      type: notifType,
-      is_read: false,
-    });
-
-    // 6. Let the Notifications screen and unread badge know new data exists.
-    //    Without this, both stay on their cached (stale) results — up to
-    //    5 minutes for the list, until its next poll for the badge — even
-    //    though the notification already exists in the database.
-    if (!insertNotifErr) {
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all(userId) });
-      queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(userId) });
-    }
+    // Notification creation is handled by the DashboardScreen useEffect
+    // (guarded by shownAlertKey) so it only fires once per alert cycle,
+    // not on every query execution.
 
     return alert;
   },

@@ -79,6 +79,8 @@ export default function ProfileScreen() {
   const onSaveProfile = async (data: any) => {
     if (!profile) return;
 
+    const changes: string[] = [];
+
     if (data.full_name !== profile.full_name) {
       const { error } = await supabase
         .from('profiles')
@@ -86,18 +88,48 @@ export default function ProfileScreen() {
         .eq('id', profile.id);
       if (error) {
         showAppAlert({ title: 'Error', message: 'Failed to update name', type: 'error' });
+        await supabase.from('notifications').insert({
+          user_id: profile.id, title: 'Error', message: 'Failed to update name',
+          type: 'profile_update', is_read: false,
+        });
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all(profile.id) });
+        queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(profile.id) });
         sendLocalNotification('Error', 'Failed to update name', { url: '/(app)/notifications' });
         return;
       }
       queryClient.invalidateQueries({ queryKey: queryKeys.auth.profile(profile.id) });
+      await refreshProfile();
+      changes.push(`name changed to "${data.full_name}"`);
     }
 
     if (budget) {
-      updateBudget({ budgetId: budget.id, updates: { monthly_limit: data.monthly_limit, alert_threshold_pct: data.alert_threshold_pct } });
+      const budgetChanges: string[] = [];
+      if (data.monthly_limit !== budget.monthly_limit) {
+        budgetChanges.push(`limit to ₱${Number(data.monthly_limit).toLocaleString()}`);
+      }
+      if (data.alert_threshold_pct !== budget.alert_threshold_pct) {
+        budgetChanges.push(`alert at ${data.alert_threshold_pct}%`);
+      }
+      if (budgetChanges.length > 0) {
+        updateBudget({ budgetId: budget.id, updates: { monthly_limit: data.monthly_limit, alert_threshold_pct: data.alert_threshold_pct } });
+        changes.push(`budget ${budgetChanges.join(', ')}`);
+      }
     }
 
-    showAppAlert({ title: 'Saved', message: 'Profile updated successfully', type: 'success' });
-    sendLocalNotification('Saved', 'Profile updated successfully', { url: '/(app)/notifications' });
+    if (changes.length === 0) {
+      showAppAlert({ title: 'No Changes', message: 'No values were changed.', type: 'info' });
+      return;
+    }
+
+    const message = 'Updated ' + changes.join(' • ');
+    showAppAlert({ title: 'Saved', message, type: 'success' });
+    await supabase.from('notifications').insert({
+      user_id: profile.id, title: 'Saved', message,
+      type: 'profile_update', is_read: false,
+    });
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all(profile.id) });
+    queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(profile.id) });
+    sendLocalNotification('Saved', message, { url: '/(app)/notifications' });
   };
 
   if (loading || budgetLoading) {
@@ -153,7 +185,9 @@ export default function ProfileScreen() {
             </View>
             <View style={styles.formContent}>
               <FormField control={control} name="monthly_limit" title="Monthly Limit (₱)" keyboardType="numeric" />
-              <FormField control={control} name="alert_threshold_pct" title="Alert Threshold (%)" keyboardType="numeric" />
+              <ThemedText style={styles.fieldHint}>Maximum amount you want to spend on electricity each month.</ThemedText>
+              <FormField control={control} name="alert_threshold_pct" title="Alert Threshold (%)" keyboardType="numeric" rules={{ min: { value: 1, message: 'Minimum threshold is 1%.' }, max: { value: 100, message: 'Maximum threshold is 100%.' } }} />
+              <ThemedText style={styles.fieldHint}>Enter a percentage between 1 and 100. You&rsquo;ll be alerted when spending reaches this % of your limit.</ThemedText>
             </View>
           </View>
 
@@ -232,6 +266,13 @@ const createStyles = (p: Palette, rf: (n: number) => number, isTablet: boolean) 
   },
   formContent: {
     gap: Spacing.two,
+  },
+  fieldHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: -8,
+    marginBottom: 4,
+    marginLeft: 2,
   },
   actionsSection: {
     marginTop: Spacing.two,

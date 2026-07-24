@@ -11,7 +11,7 @@ import { useActiveRate, useActiveRatePlan, useAdminConfig, useUpdateAdminConfig,
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useMemo, useState } from 'react';
-import { PixelRatio, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
+import { Modal, PixelRatio, Pressable, RefreshControl, ScrollView, StyleSheet, TextInput, useWindowDimensions, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE_WIDTH = 375;
@@ -48,10 +48,12 @@ export default function AdminScreen() {
 
   const [newRate, setNewRate] = useState(currentRate?.toString() ?? '12.45');
   const generateDataEnabled = adminConfig?.generate_data_enabled ?? true;
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [showRateConfirm, setShowRateConfirm] = useState(false);
 
   const isAdmin = profile?.role === 'admin';
 
-  const handleToggleGenerateData = () => {
+  const doToggleGenerateData = () => {
     if (!profile) return;
     (updateConfig as any)(
       { generateDataEnabled: !generateDataEnabled, adminId: profile.id },
@@ -66,6 +68,14 @@ export default function AdminScreen() {
     );
   };
 
+  const handleToggleGenerateData = () => {
+    if (generateDataEnabled) {
+      setShowConfirm(true);
+    } else {
+      doToggleGenerateData();
+    }
+  };
+
   const handleUpdateRate = () => {
     if (!ratePlan) {
       showAppAlert({ title: 'Error', message: 'No active rate plan found.', type: 'error' });
@@ -76,6 +86,12 @@ export default function AdminScreen() {
       showAppAlert({ title: 'Invalid', message: 'Please enter a valid rate greater than 0.', type: 'warning' });
       return;
     }
+    setShowRateConfirm(true);
+  };
+
+  const doUpdateRate = () => {
+    if (!ratePlan) return;
+    const val = parseFloat(newRate);
     (updateRate as any)(
       { rateId: ratePlan.id, ratePerKwh: val },
       {
@@ -163,6 +179,64 @@ export default function AdminScreen() {
           </View>
         </ThemedView>
       </ScrollView>
+
+      <Modal transparent visible={showConfirm} animationType="fade" onRequestClose={() => setShowConfirm(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowConfirm(false)}>
+          <Pressable style={[styles.modalDialog, { backgroundColor: p.card ?? p.bg }]} onPress={() => {}}>
+            <Ionicons name="warning-outline" size={48} color={p.gold} />
+            <ThemedText style={styles.modalTitle}>Disable Data Generation?</ThemedText>
+            <ThemedText style={[styles.modalMessage, { color: p.textMuted }]}>
+              Generated demo data will be hidden from users and only real appliance data will be shown.
+            </ThemedText>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.divider }]}
+                onPress={() => setShowConfirm(false)}
+              >
+                <ThemedText style={[styles.modalButtonText, { color: p.text }]}>Cancel</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.error }]}
+                onPress={() => {
+                  setShowConfirm(false);
+                  doToggleGenerateData();
+                }}
+              >
+                <ThemedText style={styles.modalButtonText}>Disable</ThemedText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={showRateConfirm} animationType="fade" onRequestClose={() => setShowRateConfirm(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowRateConfirm(false)}>
+          <Pressable style={[styles.modalDialog, { backgroundColor: p.card ?? p.bg }]} onPress={() => {}}>
+            <Ionicons name="pricetag-outline" size={48} color={p.gold} />
+            <ThemedText style={styles.modalTitle}>Update Rate per kWh?</ThemedText>
+            <ThemedText style={[styles.modalMessage, { color: p.textMuted }]}>
+              Changing the rate to ₱{parseFloat(newRate).toFixed(4)} will affect all cost calculations across the app. Are you sure?
+            </ThemedText>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.divider }]}
+                onPress={() => setShowRateConfirm(false)}
+              >
+                <ThemedText style={[styles.modalButtonText, { color: p.text }]}>Cancel</ThemedText>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.navy }]}
+                onPress={() => {
+                  setShowRateConfirm(false);
+                  doUpdateRate();
+                }}
+              >
+                <ThemedText style={styles.modalButtonText}>Update</ThemedText>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -239,6 +313,52 @@ const createStyles = (p: Palette, rf: (n: number) => number, isTablet: boolean) 
   },
   toggleSwitchOn: {
     backgroundColor: p.navy,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Spacing.four,
+  },
+  modalDialog: {
+    width: '100%',
+    maxWidth: 320,
+    borderRadius: 20,
+    padding: Spacing.five,
+    alignItems: 'center',
+    gap: Spacing.three,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.15,
+    shadowRadius: 12,
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    textAlign: 'center',
+  },
+  modalMessage: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  modalActions: {
+    flexDirection: 'row',
+    gap: Spacing.three,
+    marginTop: Spacing.two,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 10,
+    borderRadius: 10,
+    alignItems: 'center',
+  },
+  modalButtonText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '600',
   },
   toggleThumb: {
     width: 20,

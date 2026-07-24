@@ -182,7 +182,7 @@ export const aggregateEnergyLogs = (
     const bucket = buckets.get(bucketKey);
     if (!bucket) continue;
 
-    const cost = log.cost_per_day ?? calcCost(log.kwh_consumed, rate);
+    const cost = calcCost(log.kwh_consumed, rate);
     bucket.kWh += log.kwh_consumed;
     bucket.cost += cost;
     bucket.count++;

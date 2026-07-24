@@ -9,6 +9,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useActiveRate, useAdminConfig, useBudget, useBudgetAlert, useDashboardStats, useUnreadNotificationsCount, useUserAppliances } from '@/hooks/useSupabaseQuery';
 import { generateTips } from '@/lib/energyCalculations';
+import { queryClient, queryKeys } from '@/lib/query-client';
+import { supabase } from '@/lib/supabase';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -17,25 +19,77 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE_WIDTH = 375;
 
+const APPLIANCE_ICONS: Record<string, string> = {
+  'Air Conditioner (1.0 HP Split-Type)': 'snow-outline',
+  'Air Conditioner (1.5 HP Split-Type)': 'snow-outline',
+  'Air Conditioner (Window-Type 0.5 HP)': 'snow-outline',
+  'Air Conditioner (Window-Type 1.0 HP)': 'snow-outline',
+  'Inverter Refrigerator': 'cube-outline',
+  'Refrigerator': 'cube-outline',
+  'Freezer (Chest/Upright)': 'cube-sharp',
+  'Stand Fan': 'sync-outline',
+  'Desk Fan': 'sync-outline',
+  'Ceiling Fan': 'refresh-circle-outline',
+  'Air Purifier': 'leaf-outline',
+  'Dehumidifier': 'water-outline',
+  'Television (LED 43")': 'tv-outline',
+  'Television (LED 55")': 'tv-outline',
+  'Television (LED 65")': 'tv-outline',
+  'Desktop PC (Gaming)': 'desktop-outline',
+  'Desktop PC (Workstation)': 'desktop-outline',
+  'Laptop': 'laptop-outline',
+  'Gaming Console (PS5/Xbox Series X)': 'game-controller-outline',
+  'Wi-Fi Router': 'wifi-outline',
+  'CCTV System & NVR': 'videocam-outline',
+  'UPS (Uninterruptible Power Supply)': 'battery-charging-outline',
+  'Microwave Oven': 'grid-outline',
+  'Induction Cooktop': 'flame-outline',
+  'Electric Kettle': 'flask-outline',
+  'Coffee Maker / Espresso Machine': 'cafe-outline',
+  'Dishwasher': 'sparkles-outline',
+  'Toaster / OTG': 'square-outline',
+  'Blender / Food Processor': 'funnel-outline',
+  'Air Fryer': 'fast-food-outline',
+  'Rice Cooker': 'restaurant-outline',
+  'Washing Machine (Front/Top Load)': 'disc-outline',
+  'Clothes Dryer (Tumble)': 'repeat-outline',
+  'Vacuum Cleaner': 'hardware-chip-outline',
+  'Robot Vacuum': 'radio-button-on-outline',
+  'Electric Flat Iron': 'shirt-outline',
+  'Garment Steamer': 'cloud-outline',
+  'Instant Electric Shower Heater': 'thermometer-outline',
+  'Storage Water Heater (Boiler)': 'speedometer-outline',
+  'Hair Dryer': 'wind-outline',
+  'Hair Straightener': 'options-outline',
+  'Water Dispenser (Hot & Cold)': 'invert-mode-outline',
+  'Light Bulb (LED)': 'bulb-outline',
+  'Aquarium Pump & Heater': 'fish-outline',
+  'Electric Gate / Garage Door Motor': 'lock-closed-outline',
+};
+
+const categoryIconFallback = (name: string): string | null => {
+  return APPLIANCE_ICONS[name] ?? null;
+};
+
 export default function DashboardScreen() {
   const { profile, loading: authLoading } = useAuth();
   const { sendLocalNotification } = useNotifications();
   const { data: adminConfigData } = useAdminConfig();
   const adminConfig = adminConfigData?.data;
-  const excludeDemo = adminConfig ? !adminConfig.generate_data_enabled : false;
+  const excludeDemo = adminConfig ? !adminConfig.generate_data_enabled : undefined;
   const { data: dashboardData, isLoading: statsLoading, refetch: refetchDashboard } = useDashboardStats(profile?.id ?? '', excludeDemo);
   const { data: budgetData, isLoading: budgetLoading, refetch: refetchBudget } = useBudget(profile?.id ?? '');
-  const { data: unreadCountData } = useUnreadNotificationsCount(profile?.id ?? '');
-  const { data: budgetAlertData, refetch: refetchBudgetAlert } = useBudgetAlert(profile?.id ?? '');
+  const { data: unreadCountData, refetch: refetchUnread } = useUnreadNotificationsCount(profile?.id ?? '');
+  const { data: budgetAlertData, refetch: refetchBudgetAlert } = useBudgetAlert(profile?.id ?? '', excludeDemo);
 
   const [refreshing, setRefreshing] = useState(false);
   const [activeTab, setActiveTab] = useState<'consumers' | 'tips'>('consumers');
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
-    await Promise.all([refetchDashboard(), refetchBudget(), refetchBudgetAlert()]);
+    await Promise.all([refetchDashboard(), refetchBudget(), refetchBudgetAlert(), refetchUnread()]);
     setRefreshing(false);
-  }, [refetchDashboard, refetchBudget, refetchBudgetAlert]);
+  }, [refetchDashboard, refetchBudget, refetchBudgetAlert, refetchUnread]);
 
   const shownAlertKey = useRef<string | null>(null);
 
@@ -60,7 +114,28 @@ export default function DashboardScreen() {
     if (shownAlertKey.current === key) return;
     shownAlertKey.current = key;
 
-    const title = budgetAlertData.type === 'approaching' ? 'Budget Alert' : 'Budget Exceeded!';
+    // Create database notification once per alert cycle
+    const notifType = budgetAlertData.type === 'exceeded' ? 'budget_exceeded' : 'budget_approaching';
+    const title = budgetAlertData.type === 'exceeded' ? 'Budget Exceeded!' : 'Budget Alert';
+    supabase
+      .from('notifications')
+      .delete()
+      .eq('user_id', profile?.id ?? '')
+      .eq('type', notifType)
+      .eq('is_read', false)
+      .then(() => {
+        supabase.from('notifications').insert({
+          user_id: profile?.id ?? '',
+          title,
+          message: budgetAlertData.message,
+          type: notifType,
+          is_read: false,
+        }).then(() => {
+          queryClient.invalidateQueries({ queryKey: queryKeys.notifications.all(profile?.id ?? '') });
+          queryClient.invalidateQueries({ queryKey: queryKeys.notifications.unreadCount(profile?.id ?? '') });
+        });
+      });
+
     const body = budgetAlertData.message;
     showAppAlert({ title, message: body, type: budgetAlertData.type === 'exceeded' ? 'error' : 'warning' });
     sendLocalNotification(title, body, { url: '/(app)/notifications' });
@@ -147,6 +222,9 @@ export default function DashboardScreen() {
                 <Ionicons name="information-circle-outline" size={rf(20)} color="#E5E7EB" />
               </Pressable>
             </View>
+            <ThemedText style={styles.rateLabel} maxFontSizeMultiplier={1.2}>
+              Rate: ₱{rate.toFixed(4)}/kWh
+            </ThemedText>
             <View style={styles.summaryValues}>
               <View style={styles.summaryColumn}>
                 <ThemedText style={styles.summaryCardTitle} maxFontSizeMultiplier={1.3} numberOfLines={1}>
@@ -220,14 +298,21 @@ export default function DashboardScreen() {
             {activeTab === 'consumers' ? (
               <View style={[styles.topConsumersContainer, isTablet && styles.topConsumersGrid]}>
                 {stats?.topConsumers && stats.topConsumers.length > 0 ? (
-                  stats.topConsumers.map((consumer: any, index: number) => (
+                  stats.topConsumers.map((consumer: any, index: number) => {
+                    const iconName = consumer.iconName || categoryIconFallback(consumer.name) || 'flash-outline';
+                    return (
                     <View
                       key={index}
                       style={[styles.consumerCard, isTablet && styles.consumerCardTablet]}
                     >
-                      <ThemedText style={styles.consumerName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
-                        {consumer.name}
-                      </ThemedText>
+                      <View style={styles.consumerLeft}>
+                        <View style={[styles.consumerIconWrap, { backgroundColor: p.divider }]}>
+                          <Ionicons name={iconName as any} size={rf(18)} color={p.gold} />
+                        </View>
+                        <ThemedText style={styles.consumerName} numberOfLines={1} ellipsizeMode="tail" maxFontSizeMultiplier={1.3}>
+                          {consumer.name}
+                        </ThemedText>
+                      </View>
                       <View style={styles.consumerValues}>
                         <ThemedText style={styles.consumerKwh} numberOfLines={1} maxFontSizeMultiplier={1.3}>
                           {consumer.kwh.toFixed(2)} kWh
@@ -237,7 +322,8 @@ export default function DashboardScreen() {
                         </ThemedText>
                       </View>
                     </View>
-                  ))
+                    );
+                  })
                 ) : (
                   <ThemedText>No appliance usage recorded yet.</ThemedText>
                 )}
@@ -308,6 +394,7 @@ const createStyles = (p: Palette, rf: (n: number) => number, isSmallScreen: bool
     },
     summaryCardLabelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two },
     summaryCardLabel: { color: '#E5E7EB', fontSize: rf(14), lineHeight: rf(18) },
+    rateLabel: { color: 'rgba(255,255,255,0.7)', fontSize: rf(12), marginTop: Spacing.one },
     summaryValues: {
       flexDirection: 'row',
       justifyContent: 'space-between',
@@ -394,6 +481,22 @@ const createStyles = (p: Palette, rf: (n: number) => number, isSmallScreen: bool
     },
     consumerCardTablet: {
       width: '48%',
+    },
+    consumerLeft: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.two,
+      flexShrink: 1,
+      flex: 1,
+      minWidth: 0,
+    },
+    consumerIconWrap: {
+      width: rf(32),
+      height: rf(32),
+      borderRadius: rf(8),
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     consumerName: {
       fontWeight: 'bold',

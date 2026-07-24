@@ -36,6 +36,7 @@ export default function AddApplianceScreen() {
     name: string;
     category: string;
     wattage: number;
+    icon_name?: string;
   } | null>(null);
 
   // Responsive Scaling Logic
@@ -58,11 +59,12 @@ export default function AddApplianceScreen() {
     });
   }, [search]);
 
-  const handleSelectAppliance = (item: { name: string; watts: number; category?: string }) => {
+  const handleSelectAppliance = (item: { name: string; watts: number; category?: string; icon?: string }) => {
     setSelectedAppliance({
       name: item.name,
       wattage: item.watts,
       category: item.category ?? item.name.split(' ')[0],
+      icon_name: item.icon,
     });
   };
 
@@ -70,7 +72,7 @@ export default function AddApplianceScreen() {
     if (!profile) return;
     setLoading(true);
     createAppliance(
-      { ...data, user_id: profile.id },
+      { ...data, icon_name: selectedAppliance?.icon_name, user_id: profile.id },
       {
         onSuccess: () => {
           setLoading(false);

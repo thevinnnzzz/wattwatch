@@ -65,37 +65,56 @@ export const energyService = {
     const from = format(startOfMonth(now), 'yyyy-MM-dd');
     const to = format(endOfMonth(now), 'yyyy-MM-dd');
 
-    let query = supabase
+    const logsQuery = supabase
       .from('energy_logs')
-      .select(`kwh_consumed, cost_per_day, appliance:appliances(id, name)`)
+      .select(`kwh_consumed, cost_per_day, appliance:appliances(id, name, icon_name, is_active)`)
       .eq('user_id', userId)
       .gte('date', from)
       .lte('date', to);
 
     if (excludeDemo) {
-      query = query.eq('is_demo', false);
+      logsQuery.eq('is_demo', false);
     }
 
-    const { data: logs, error } = await query;
+    const [logsResult, rateResult] = await Promise.all([
+      logsQuery,
+      supabase
+        .from('rate_plans')
+        .select('rate_per_kwh')
+        .eq('is_active', true)
+        .order('effective_from', { ascending: false })
+        .limit(1)
+        .single(),
+    ]);
 
-    if (error) return { data: null, error };
+    const logs = logsResult.data;
+    const rate = rateResult.data?.rate_per_kwh ?? 12.45;
 
-    const totalKwh = logs.reduce((sum, log) => sum + log.kwh_consumed, 0);
-    const totalCost = logs.reduce((sum, log) => sum + (log.cost_per_day || 0), 0);
+    if (logsResult.error) return { data: null, error: logsResult.error };
 
-    const consumerMap = new Map<string, { name: string; kwh: number; cost: number }>();
-    logs.forEach(log => {
+    const activeLogs = logs.filter(log => {
+      const app = Array.isArray(log.appliance) ? log.appliance[0] : log.appliance;
+      return app && app.is_active;
+    });
+
+    const totalKwh = activeLogs.reduce((sum, log) => sum + log.kwh_consumed, 0);
+    const totalCost = totalKwh * rate;
+
+    const consumerMap = new Map<string, { name: string; iconName: string | null; kwh: number; cost: number }>();
+    activeLogs.forEach(log => {
       const app = Array.isArray(log.appliance) ? log.appliance[0] : log.appliance;
       if (app) {
         const existing = consumerMap.get(app.id);
+        const cost = log.kwh_consumed * rate;
         if (existing) {
           existing.kwh += log.kwh_consumed;
-          existing.cost += (log.cost_per_day || 0);
+          existing.cost += cost;
         } else {
           consumerMap.set(app.id, {
             name: app.name,
+            iconName: app.icon_name ?? null,
             kwh: log.kwh_consumed,
-            cost: log.cost_per_day || 0,
+            cost,
           });
         }
       }

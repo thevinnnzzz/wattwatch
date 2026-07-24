@@ -116,7 +116,7 @@ export function useNotifications() {
     if (!Notifications) return;
     try {
       await N().scheduleNotificationAsync({
-        content: { title, body, data, icon: 'icon', sound: true },
+        content: { title, body, data, sound: true },
         trigger: null,
       });
     } catch (err) {
@@ -133,7 +133,7 @@ export function useNotifications() {
     if (!Notifications) return;
     try {
       await N().scheduleNotificationAsync({
-        content: { title, body, data, icon: 'icon', sound: true },
+        content: { title, body, data, sound: true },
         trigger,
       });
     } catch (err) {

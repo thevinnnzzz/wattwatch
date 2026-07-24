@@ -161,12 +161,16 @@ export function useUpdateAppliance() {
     ({ applianceId, updates }: { applianceId: string, updates: any }) =>
       applianceService.updateAppliance(applianceId, updates),
     {
-      onSuccess: (data) => {
+      onSuccess: (data, variables) => {
         if (data) {
-          const rate = rateData?.data?.rate_per_kwh ?? 12.45;
-          generateLogs.mutate({ appliance: data, rate });
+          const hasEnergyChanges = Object.keys(variables.updates).some(k => k !== 'is_active');
+          if (hasEnergyChanges) {
+            const rate = rateData?.data?.rate_per_kwh ?? 12.45;
+            generateLogs.mutate({ appliance: data, rate });
+          }
           queryClient.invalidateQueries({ queryKey: queryKeys.appliances.all(data.user_id) });
           queryClient.invalidateQueries({ queryKey: queryKeys.appliances.detail(data.id) });
+          queryClient.invalidateQueries({ queryKey: ['energy'] });
         }
       },
     }
@@ -285,6 +289,7 @@ export function useUpdateRate() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: queryKeys.energy.rate() });
         queryClient.invalidateQueries({ queryKey: queryKeys.admin.ratePlan() });
+        queryClient.invalidateQueries({ queryKey: ['energy'] });
       },
     }
   );
@@ -299,11 +304,11 @@ export function useActiveRatePlan() {
 
 // ─── Budget alerts & Notifications ──────────────────────────────────────
 
-export function useBudgetAlert(userId: string) {
+export function useBudgetAlert(userId: string, excludeDemo?: boolean) {
   return useSupabaseQuery<BudgetAlert | null>(
-    queryKeys.energy.budgetAlert(userId),
-    () => budgetService.checkBudgetAlerts(userId),
-    { enabled: !!userId }
+    queryKeys.energy.budgetAlert(userId, excludeDemo),
+    () => budgetService.checkBudgetAlerts(userId, excludeDemo ?? false),
+    { enabled: !!userId && excludeDemo !== undefined }
   );
 }
 

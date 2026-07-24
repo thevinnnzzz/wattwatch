@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { Control, Controller, FieldError } from 'react-hook-form';
+import { Control, Controller, FieldError, RegisterOptions } from 'react-hook-form';
 import { Input, InputProps } from '@/components/ui/Input';
 import { ThemedText } from '@/components/themed-text';
 import { Spacing } from '@/constants/theme';
@@ -11,6 +11,7 @@ interface FormFieldProps extends InputProps {
   name: string;
   title: string;
   error?: string;
+  rules?: Omit<RegisterOptions, 'valueAsNumber' | 'valueAsDate' | 'setValueAs'>;
   valueType?: 'string' | 'number';
 }
 
@@ -19,6 +20,7 @@ const FormField: React.FC<FormFieldProps> = ({
   name,
   title,
   error,
+  rules,
   valueType = 'string',
   ...props
 }) => {
@@ -30,23 +32,30 @@ const FormField: React.FC<FormFieldProps> = ({
       <Controller
         control={control}
         name={name}
-        render={({ field: { onChange, onBlur, value } }) => (
-          <Input
-            onBlur={onBlur}
-            onChangeText={(text) => {
-              if (valueType === 'number') {
-                const numericValue = text === '' ? null : parseFloat(text);
-                onChange(numericValue);
-              } else {
-                onChange(text);
-              }
-            }}
-            value={value?.toString() ?? ''}
-            {...props}
-          />
+        rules={rules}
+        render={({ field: { onChange, onBlur, value }, fieldState }) => (
+          <>
+            <Input
+              onBlur={onBlur}
+              onChangeText={(text) => {
+                if (valueType === 'number') {
+                  const numericValue = text === '' ? null : parseFloat(text);
+                  onChange(numericValue);
+                } else {
+                  onChange(text);
+                }
+              }}
+              value={value?.toString() ?? ''}
+              {...props}
+            />
+            {(error || fieldState.error?.message) && (
+              <Text style={[styles.errorText, { color: p.error }]}>
+                {error || fieldState.error?.message}
+              </Text>
+            )}
+          </>
         )}
       />
-      {error && <Text style={[styles.errorText, { color: p.error }]}>{error}</Text>}
     </View>
   );
 };

@@ -36,7 +36,7 @@ export const queryKeys = {
     logs: (userId: string, from: string, to: string) => ['energy', 'logs', userId, from, to] as const,
     dashboard: (userId: string, excludeDemo = false) => ['energy', 'dashboard', userId, excludeDemo] as const,
     budget: (userId: string) => ['energy', 'budget', userId] as const,
-    budgetAlert: (userId: string) => ['energy', 'budgetAlert', userId] as const,
+    budgetAlert: (userId: string, excludeDemo?: boolean) => ['energy', 'budgetAlert', userId, excludeDemo] as const,
     rate: () => ['energy', 'rate'] as const,
   },
 

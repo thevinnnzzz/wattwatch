@@ -1,27 +1,76 @@
 import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Button } from '@/components/ui/Button';
-import { EmptyState } from '@/components/ui/EmptyState';
 import Spinner from '@/components/ui/Loading';
 import { Spacing } from '@/constants/theme';
 import { usePalette } from '@/constants/usePalette';
 import { useAuth } from '@/hooks/useAuth';
-import { useDeleteAppliance, useUpdateAppliance, useUserAppliances } from '@/hooks/useSupabaseQuery';
+import { useActiveRate, useDeleteAppliance, useUpdateAppliance, useUserAppliances } from '@/hooks/useSupabaseQuery';
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, FlatList, Modal, PixelRatio, Pressable, StyleSheet, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, FlatList, Modal, PixelRatio, Pressable, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 const BASE_WIDTH = 375;
 const DELETE_WIDTH = 88;
-const TRACK_WIDTH = 44;
-const TRACK_HEIGHT = 24;
-const THUMB_SIZE = 20;
+
+const APPLIANCE_ICONS: Record<string, string> = {
+  'Air Conditioner (1.0 HP Split-Type)': 'snow-outline',
+  'Air Conditioner (1.5 HP Split-Type)': 'snow-outline',
+  'Air Conditioner (Window-Type 0.5 HP)': 'snow-outline',
+  'Air Conditioner (Window-Type 1.0 HP)': 'snow-outline',
+  'Inverter Refrigerator': 'cube-outline',
+  'Refrigerator': 'cube-outline',
+  'Freezer (Chest/Upright)': 'cube-sharp',
+  'Stand Fan': 'sync-outline',
+  'Desk Fan': 'sync-outline',
+  'Ceiling Fan': 'refresh-circle-outline',
+  'Air Purifier': 'leaf-outline',
+  'Dehumidifier': 'water-outline',
+  'Television (LED 43")': 'tv-outline',
+  'Television (LED 55")': 'tv-outline',
+  'Television (LED 65")': 'tv-outline',
+  'Desktop PC (Gaming)': 'desktop-outline',
+  'Desktop PC (Workstation)': 'desktop-outline',
+  'Laptop': 'laptop-outline',
+  'Gaming Console (PS5/Xbox Series X)': 'game-controller-outline',
+  'Wi-Fi Router': 'wifi-outline',
+  'CCTV System & NVR': 'videocam-outline',
+  'UPS (Uninterruptible Power Supply)': 'battery-charging-outline',
+  'Microwave Oven': 'grid-outline',
+  'Induction Cooktop': 'flame-outline',
+  'Electric Kettle': 'flask-outline',
+  'Coffee Maker / Espresso Machine': 'cafe-outline',
+  'Dishwasher': 'sparkles-outline',
+  'Toaster / OTG': 'square-outline',
+  'Blender / Food Processor': 'funnel-outline',
+  'Air Fryer': 'fast-food-outline',
+  'Rice Cooker': 'restaurant-outline',
+  'Washing Machine (Front/Top Load)': 'disc-outline',
+  'Clothes Dryer (Tumble)': 'repeat-outline',
+  'Vacuum Cleaner': 'hardware-chip-outline',
+  'Robot Vacuum': 'radio-button-on-outline',
+  'Electric Flat Iron': 'shirt-outline',
+  'Garment Steamer': 'cloud-outline',
+  'Instant Electric Shower Heater': 'thermometer-outline',
+  'Storage Water Heater (Boiler)': 'speedometer-outline',
+  'Hair Dryer': 'wind-outline',
+  'Hair Straightener': 'options-outline',
+  'Water Dispenser (Hot & Cold)': 'invert-mode-outline',
+  'Light Bulb (LED)': 'bulb-outline',
+  'Aquarium Pump & Heater': 'fish-outline',
+  'Electric Gate / Garage Door Motor': 'lock-closed-outline',
+};
+
+const getApplianceIcon = (name: string, dbIcon: string | null): string => {
+  return dbIcon || APPLIANCE_ICONS[name] || 'flash-outline';
+};
 
 function AnimatedSwitch({ value, onValueChange, trackColor }: { value: boolean; onValueChange: () => void; trackColor: string }) {
   const animatedValue = useRef(new Animated.Value(value ? 1 : 0)).current;
+  const TRACK_WIDTH = 44;
+  const TRACK_HEIGHT = 24;
+  const THUMB_SIZE = 20;
 
   useEffect(() => {
     Animated.spring(animatedValue, {
@@ -33,22 +82,8 @@ function AnimatedSwitch({ value, onValueChange, trackColor }: { value: boolean; 
     }).start();
   }, [value, animatedValue]);
 
-  const trackBackground = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: ['#E5E7EB', trackColor],
-  });
-
-  const thumbTranslate = animatedValue.interpolate({
-    inputRange: [0, 1],
-    outputRange: [2, TRACK_WIDTH - THUMB_SIZE - 2],
-  });
-
   return (
-    <TouchableOpacity
-      onPress={onValueChange}
-      activeOpacity={0.8}
-      style={{ padding: 4 }}
-    >
+    <TouchableOpacity onPress={onValueChange} activeOpacity={0.8} style={{ padding: 4 }}>
       <Animated.View
         style={[
           {
@@ -56,8 +91,11 @@ function AnimatedSwitch({ value, onValueChange, trackColor }: { value: boolean; 
             height: TRACK_HEIGHT,
             borderRadius: TRACK_HEIGHT / 2,
             justifyContent: 'center',
+            backgroundColor: animatedValue.interpolate({
+              inputRange: [0, 1],
+              outputRange: ['#CBD5E1', trackColor],
+            }),
           },
-          { backgroundColor: trackBackground },
         ]}
       >
         <Animated.View
@@ -66,14 +104,26 @@ function AnimatedSwitch({ value, onValueChange, trackColor }: { value: boolean; 
               width: THUMB_SIZE,
               height: THUMB_SIZE,
               borderRadius: THUMB_SIZE / 2,
-              backgroundColor: 'white',
+              backgroundColor: animatedValue.interpolate({
+                inputRange: [0, 1],
+                outputRange: ['#F8FAFC', '#FF8C00'],
+              }),
               elevation: 2,
               shadowColor: '#000',
               shadowOffset: { width: 0, height: 1 },
               shadowOpacity: 0.15,
               shadowRadius: 2,
             },
-            { transform: [{ translateX: thumbTranslate }] },
+            {
+              transform: [
+                {
+                  translateX: animatedValue.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [2, TRACK_WIDTH - THUMB_SIZE - 2],
+                  }),
+                },
+              ],
+            },
           ]}
         />
       </Animated.View>
@@ -85,8 +135,11 @@ export default function AppliancesScreen() {
   const { profile } = useAuth();
   const p = usePalette();
   const { data: appliancesData, isLoading, refetch: refetchAppliances } = useUserAppliances(profile?.id ?? '');
+  const { data: rateData } = useActiveRate();
   const { mutate: deleteAppliance } = useDeleteAppliance();
   const { mutate: updateAppliance } = useUpdateAppliance();
+
+  const rate = (rateData as any)?.data?.rate_per_kwh ?? 12.45;
 
   const { width } = useWindowDimensions();
 
@@ -117,6 +170,8 @@ export default function AppliancesScreen() {
   const [sortBy, setSortBy] = useState<'name' | 'wattage' | 'hours'>('name');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
   const [showSortMenu, setShowSortMenu] = useState(false);
+  const [showToggleConfirm, setShowToggleConfirm] = useState(false);
+  const [pendingToggle, setPendingToggle] = useState<any>(null);
 
   const filteredAndSorted = useMemo(() => {
     let list = [...appliances];
@@ -142,7 +197,21 @@ export default function AppliancesScreen() {
   ];
 
   const handleToggleActive = (appliance: any) => {
-    updateAppliance({ applianceId: appliance.id, updates: { is_active: !appliance.is_active } });
+    setPendingToggle(appliance);
+    setShowToggleConfirm(true);
+  };
+
+  const confirmToggle = () => {
+    if (!pendingToggle) return;
+    updateAppliance({ applianceId: pendingToggle.id, updates: { is_active: !pendingToggle.is_active } });
+    setShowToggleConfirm(false);
+    setPendingToggle(null);
+  };
+
+  const calcDailyCost = (wattage: number, hours: number): string => {
+    const kwh = (wattage * hours) / 1000;
+    const cost = kwh * rate;
+    return `₱${cost.toFixed(2)}`;
   };
 
   const renderRightActions = (applianceId: string) => (
@@ -161,54 +230,80 @@ export default function AppliancesScreen() {
     </Pressable>
   );
 
-  const renderItem = ({ item }: { item: any }) => (
-    <Swipeable
-      renderRightActions={() => renderRightActions(item.id)}
-      overshootRight={false}
-      containerStyle={isTablet ? styles.tabletItemWrapper : styles.mobileItemWrapper}
-    >
-      <Pressable
-        onPress={() => router.push({ pathname: '/(app)/appliance-details', params: { applianceId: item.id } })}
-        style={({ pressed }) => [
-          styles.applianceCard,
-          isTablet && styles.applianceCardTablet,
-          !isTablet && { backgroundColor: p.bg },
-          { opacity: pressed ? 0.85 : 1 },
-        ]}
+  const renderItem = ({ item }: { item: any }) => {
+    const iconName = getApplianceIcon(item.name, item.icon_name);
+    const dailyCost = calcDailyCost(item.wattage, item.hours_used_daily);
+    return (
+      <Swipeable
+        renderRightActions={() => renderRightActions(item.id)}
+        overshootRight={false}
+        containerStyle={isTablet ? styles.tabletItemWrapper : styles.mobileItemWrapper}
       >
-        <View style={styles.applianceMain}>
-          <View style={[styles.statusDot, { backgroundColor: item.is_active ? '#22C55E' : '#9CA3AF' }]} />
-          
-          <View style={styles.applianceTextWrap}>
-            {/* Title and Switch are grouped together to ensure they sit on the exact same horizontal line */}
-            <View style={styles.titleRow}>
-              <ThemedText style={styles.applianceName} numberOfLines={1} maxFontSizeMultiplier={1.3}>
-                {item.name}
-              </ThemedText>
-              <AnimatedSwitch
-                value={item.is_active}
-                onValueChange={() => handleToggleActive(item)}
-                trackColor={'#22C55E'}
+        <Pressable
+          onPress={() => router.push({ pathname: '/(app)/appliance-details', params: { applianceId: item.id } })}
+          style={({ pressed }) => [
+            styles.card,
+            { opacity: pressed ? 0.85 : 1 },
+          ]}
+        >
+          <View style={styles.cardHeader}>
+            <View style={styles.iconContainer}>
+              <Ionicons name={iconName as any} size={rf(24)} color={p.navy} />
+              <View
+                style={[
+                  styles.statusDot,
+                  {
+                    backgroundColor: item.is_active ? '#22C55E' : '#EF4444',
+                  },
+                ]}
               />
             </View>
-            
-            <View style={styles.metaRow}>
-              <View style={[styles.metaBadge, { backgroundColor: p.divider }]}>
-                <ThemedText style={[styles.metaBadgeText, { color: p.textMuted }]} maxFontSizeMultiplier={1.2}>
-                  {item.wattage}W
-                </ThemedText>
-              </View>
-              <View style={[styles.metaBadge, { backgroundColor: p.divider }]}>
-                <ThemedText style={[styles.metaBadgeText, { color: p.textMuted }]} maxFontSizeMultiplier={1.2}>
-                  {item.hours_used_daily} hrs/day
-                </ThemedText>
+
+            <View style={styles.infoContainer}>
+              <ThemedText
+                style={styles.applianceName}
+                numberOfLines={1}
+                maxFontSizeMultiplier={1.3}
+              >
+                {item.name}
+              </ThemedText>
+
+              <View style={styles.badgeRow}>
+                <View style={styles.badge}>
+                  <Ionicons name="flash" size={rf(11)} color={p.gold} style={{ marginRight: 3 }} />
+                  <ThemedText style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+                    {item.wattage}W
+                  </ThemedText>
+                </View>
+
+                <View style={styles.badge}>
+                  <Ionicons name="time-outline" size={rf(11)} color={p.textMuted} style={{ marginRight: 3 }} />
+                  <ThemedText style={styles.badgeText} maxFontSizeMultiplier={1.2}>
+                    {item.hours_used_daily} hrs/day
+                  </ThemedText>
+                </View>
               </View>
             </View>
+
+            <AnimatedSwitch
+              value={item.is_active}
+              onValueChange={() => handleToggleActive(item)}
+              trackColor={p.navy}
+            />
           </View>
-        </View>
-      </Pressable>
-    </Swipeable>
-  );
+
+          <View style={styles.cardFooter}>
+            <ThemedText style={styles.footerLabel} maxFontSizeMultiplier={1.2}>
+              Est. Daily Cost
+            </ThemedText>
+            <ThemedText style={styles.costValue} maxFontSizeMultiplier={1.2} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>
+              {dailyCost}/day
+            </ThemedText>
+          </View>
+        </Pressable>
+      </Swipeable>
+    );
+  };
 
   if (isLoading) {
     return <Spinner />;
@@ -216,123 +311,176 @@ export default function AppliancesScreen() {
 
   return (
     <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top', 'left', 'right']}>
-      <ThemedView style={styles.container}>
-        <ThemedView style={styles.header}>
-          <ThemedText type="title" style={styles.headerTitle} maxFontSizeMultiplier={1.3}>
+      <View style={styles.headerOuter}>
+        <View>
+          <ThemedText style={styles.headerTitle} maxFontSizeMultiplier={1.3}>
             My Appliances
           </ThemedText>
-          <Button title="Add New" size="sm" onPress={() => router.push('/(app)/add-appliance')} />
-        </ThemedView>
+          <ThemedText style={styles.headerSubtitle} maxFontSizeMultiplier={1.2}>
+            {appliances.length} Devices Registered
+          </ThemedText>
+        </View>
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/add-appliance')}
+          activeOpacity={0.8}
+          style={styles.addButton}
+        >
+          <Ionicons name="add" size={rf(18)} color="#FFFFFF" />
+          <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
+            Add New
+          </ThemedText>
+        </TouchableOpacity>
+      </View>
 
-        {/* Filter & Sort Bar */}
-        <View style={styles.filterBar}>
-          <View style={styles.filterChips}>
-            {(['all', 'active', 'inactive'] as const).map(status => (
-              <Pressable
-                key={status}
-                onPress={() => setFilterStatus(status)}
+      <View style={styles.controlsRow}>
+        <View style={styles.filterGroup}>
+          {(['all', 'active', 'inactive'] as const).map(tab => (
+            <Pressable
+              key={tab}
+              onPress={() => setFilterStatus(tab)}
+              style={[styles.filterChip, filterStatus === tab && styles.filterChipActive]}
+            >
+              <ThemedText
                 style={[
-                  styles.filterChip,
-                  filterStatus === status && styles.filterChipActive,
+                  styles.filterText,
+                  filterStatus === tab && styles.filterTextActive,
                 ]}
+                maxFontSizeMultiplier={1.2}
+              >
+                {tab === 'all' ? 'All' : tab === 'active' ? 'Active' : 'Inactive'}
+              </ThemedText>
+            </Pressable>
+          ))}
+        </View>
+
+        <Pressable
+          onPress={() => setShowSortMenu(true)}
+          style={styles.sortButton}
+        >
+          <Ionicons name="swap-vertical" size={rf(14)} color={p.textMuted} />
+          <ThemedText style={styles.sortText} maxFontSizeMultiplier={1.2}>
+            {sortOptions.find(o => o.value === sortBy)?.label}
+          </ThemedText>
+        </Pressable>
+      </View>
+
+      <Modal transparent visible={showSortMenu} onRequestClose={() => setShowSortMenu(false)} animationType="fade">
+        <Pressable style={styles.modalOverlay} onPress={() => setShowSortMenu(false)}>
+          <View style={[styles.sortMenu, { backgroundColor: p.card ?? p.bg }]}>
+            <ThemedText style={styles.sortMenuTitle} maxFontSizeMultiplier={1.3}>Sort by</ThemedText>
+            {sortOptions.map(opt => (
+              <Pressable
+                key={opt.value}
+                onPress={() => {
+                  if (sortBy === opt.value) {
+                    setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
+                  } else {
+                    setSortBy(opt.value);
+                    setSortDir('asc');
+                  }
+                  setShowSortMenu(false);
+                }}
+                style={[styles.sortMenuItem, sortBy === opt.value && { backgroundColor: p.divider }]}
               >
                 <ThemedText
                   style={[
-                    styles.filterChipText,
-                    filterStatus === status
-                      ? styles.filterChipTextActive
-                      : { color: p.textMuted },
+                    styles.sortMenuItemText,
+                    sortBy === opt.value && { fontWeight: '700' as const },
                   ]}
                   maxFontSizeMultiplier={1.2}
                 >
-                  {status === 'all' ? 'All' : status === 'active' ? 'Active' : 'Inactive'}
+                  {opt.label}
                 </ThemedText>
+                {sortBy === opt.value && (
+                  <Ionicons
+                    name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
+                    size={rf(16)}
+                    color={p.primary}
+                  />
+                )}
               </Pressable>
             ))}
           </View>
+        </Pressable>
+      </Modal>
 
-          <Pressable
-            onPress={() => setShowSortMenu(true)}
-            style={[styles.sortButton, { backgroundColor: p.divider }]}
-          >
-            <Ionicons name="swap-vertical" size={rf(14)} color={p.textMuted} />
-            <ThemedText style={[styles.sortButtonText, { color: p.textMuted }]} maxFontSizeMultiplier={1.2}>
-              {sortOptions.find(o => o.value === sortBy)?.label}
+      <Modal transparent visible={showToggleConfirm} animationType="fade" onRequestClose={() => setShowToggleConfirm(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowToggleConfirm(false)}>
+          <View style={[styles.toggleModalDialog, { backgroundColor: p.card ?? p.bg }]}>
+            <Ionicons name={pendingToggle?.is_active ? 'pause-circle-outline' : 'play-circle-outline'} size={48} color={p.gold} />
+            <ThemedText style={styles.toggleModalTitle}>
+              {pendingToggle?.is_active ? 'Turn Off Appliance?' : 'Turn On Appliance?'}
             </ThemedText>
-            <Ionicons name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'} size={rf(12)} color={p.textMuted} />
-          </Pressable>
-        </View>
-
-        {/* Sort Modal */}
-        <Modal transparent visible={showSortMenu} onRequestClose={() => setShowSortMenu(false)} animationType="fade">
-          <Pressable style={styles.modalOverlay} onPress={() => setShowSortMenu(false)}>
-            <View style={[styles.sortMenu, { backgroundColor: p.card ?? p.bg }]}>
-              <ThemedText style={styles.sortMenuTitle} maxFontSizeMultiplier={1.3}>Sort by</ThemedText>
-              {sortOptions.map(opt => (
-                <Pressable
-                  key={opt.value}
-                  onPress={() => {
-                    if (sortBy === opt.value) {
-                      setSortDir(d => (d === 'asc' ? 'desc' : 'asc'));
-                    } else {
-                      setSortBy(opt.value);
-                      setSortDir('asc');
-                    }
-                    setShowSortMenu(false);
-                  }}
-                  style={[styles.sortMenuItem, sortBy === opt.value && { backgroundColor: p.divider }]}
-                >
-                  <ThemedText
-                    style={[
-                      styles.sortMenuItemText,
-                      sortBy === opt.value && { fontWeight: '700' as const },
-                    ]}
-                    maxFontSizeMultiplier={1.2}
-                  >
-                    {opt.label}
-                  </ThemedText>
-                  {sortBy === opt.value && (
-                    <Ionicons
-                      name={sortDir === 'asc' ? 'arrow-up' : 'arrow-down'}
-                      size={rf(16)}
-                      color={p.primary}
-                    />
-                  )}
-                </Pressable>
-              ))}
+            <ThemedText style={[styles.toggleModalMessage, { color: p.textMuted }]}>
+              {pendingToggle?.is_active
+                ? `"${pendingToggle?.name}" will be deactivated. Its data will stop appearing in the dashboard and analytics across the entire app.`
+                : `"${pendingToggle?.name}" will be activated. Its data will start appearing in the dashboard and analytics across the entire app.`}
+            </ThemedText>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.divider }]}
+                onPress={() => { setShowToggleConfirm(false); setPendingToggle(null); }}
+              >
+                <Text style={[styles.modalButtonText, { color: p.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: pendingToggle?.is_active ? p.error : p.navy }]}
+                onPress={confirmToggle}
+              >
+                <Text style={styles.modalButtonText}>{pendingToggle?.is_active ? 'Turn Off' : 'Turn On'}</Text>
+              </Pressable>
             </View>
-          </Pressable>
-        </Modal>
+          </View>
+        </Pressable>
+      </Modal>
 
-        {filteredAndSorted.length === 0 ? (
-          <EmptyState
-            title={filterStatus === 'all' ? 'No Appliances Found' : 'No Matching Appliances'}
-            description={
-              filterStatus === 'all'
-                ? 'Add your first appliance to start tracking your energy consumption.'
-                : 'Try changing the filter to see more appliances.'
-            }
-            action={
-              filterStatus === 'all'
-                ? { label: 'Add Appliance', onPress: () => router.push('/(app)/add-appliance') }
-                : { label: 'Show All', onPress: () => setFilterStatus('all') }
-            }
-          />
-        ) : (
-          <FlatList
-            data={filteredAndSorted}
-            renderItem={renderItem}
-            keyExtractor={(item) => item.id}
-            key={numColumns}
-            numColumns={numColumns}
-            columnWrapperStyle={isTablet ? styles.columnWrapper : undefined}
-            contentContainerStyle={styles.listContent}
-            showsVerticalScrollIndicator={false}
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-          />
-        )}
-      </ThemedView>
+      {filteredAndSorted.length === 0 ? (
+        <View style={styles.emptyWrap}>
+          <Ionicons name="apps-outline" size={rf(48)} color={p.textMuted} />
+          <ThemedText style={{ fontWeight: 'bold', fontSize: rf(16), marginTop: Spacing.two }} maxFontSizeMultiplier={1.2}>
+            {filterStatus === 'all' ? 'No Appliances Found' : 'No Matching Appliances'}
+          </ThemedText>
+          <ThemedText style={{ color: p.textMuted, textAlign: 'center', fontSize: rf(14), marginTop: Spacing.one }} maxFontSizeMultiplier={1.2}>
+            {filterStatus === 'all'
+              ? 'Add your first appliance to start tracking your energy consumption.'
+              : 'Try changing the filter to see more appliances.'}
+          </ThemedText>
+          {filterStatus === 'all' ? (
+            <TouchableOpacity
+              onPress={() => router.push('/(app)/add-appliance')}
+              activeOpacity={0.8}
+              style={[styles.addButton, { marginTop: Spacing.four }]}
+            >
+              <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
+                Add Appliance
+              </ThemedText>
+            </TouchableOpacity>
+          ) : (
+            <TouchableOpacity
+              onPress={() => setFilterStatus('all')}
+              activeOpacity={0.8}
+              style={[styles.addButton, { marginTop: Spacing.four }]}
+            >
+              <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
+                Show All
+              </ThemedText>
+            </TouchableOpacity>
+          )}
+        </View>
+      ) : (
+        <FlatList
+          data={filteredAndSorted}
+          renderItem={renderItem}
+          keyExtractor={(item) => item.id}
+          key={numColumns}
+          numColumns={numColumns}
+          columnWrapperStyle={isTablet ? styles.columnWrapper : undefined}
+          contentContainerStyle={styles.listContent}
+          showsVerticalScrollIndicator={false}
+          refreshing={refreshing}
+          onRefresh={onRefresh}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -344,158 +492,197 @@ const createStyles = (
   p: any
 ) =>
   StyleSheet.create({
-    container: {
-      flex: 1,
-      padding: isSmallScreen ? Spacing.three : Spacing.four,
-      gap: Spacing.four,
-      maxWidth: isTablet ? 900 : undefined,
-      width: '100%',
-      alignSelf: isTablet ? 'center' : 'stretch',
-    },
-    header: {
+    headerOuter: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingBottom: Spacing.three,
-      flexWrap: 'wrap',
-      gap: Spacing.two,
+      paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
+      paddingTop: Spacing.three,
+      paddingBottom: Spacing.four,
     },
-    headerTitle: { 
-      fontSize: rf(24), 
-      flexShrink: 1 
+    headerTitle: {
+      fontWeight: '800',
+      fontSize: rf(24),
+      color: p.text,
+      flexShrink: 1,
     },
-    listContent: { 
-      paddingBottom: Spacing.six ?? 24 
+    headerSubtitle: {
+      color: p.textMuted,
+      fontWeight: '500',
+      fontSize: rf(12),
+      marginTop: 2,
     },
-    columnWrapper: { 
-      gap: Spacing.three, 
-      justifyContent: 'space-between' 
+    addButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: p.gold,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 12,
+      gap: 4,
+    },
+    addButtonText: {
+      color: '#FFFFFF',
+      fontWeight: '700',
+      fontSize: rf(13),
+    },
+    controlsRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
+      marginBottom: Spacing.four,
+    },
+    filterGroup: {
+      flexDirection: 'row',
+      backgroundColor: p.divider,
+      borderRadius: 10,
+      padding: 3,
+      gap: 2,
+    },
+    filterChip: {
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 8,
+    },
+    filterChipActive: {
+      backgroundColor: p.navy,
+    },
+    filterText: {
+      fontWeight: '600',
+      fontSize: rf(12),
+      color: p.textMuted,
+    },
+    filterTextActive: {
+      color: '#FFFFFF',
+    },
+    sortButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: p.card ?? '#FFFFFF',
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+      borderRadius: 8,
+      borderWidth: 1,
+      borderColor: p.divider,
+      gap: 4,
+    },
+    sortText: {
+      fontWeight: '600',
+      fontSize: rf(12),
+      color: p.textMuted,
+    },
+    listContent: {
+      paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
+      paddingBottom: 32,
+      gap: 12,
+    },
+    columnWrapper: {
+      gap: 12,
     },
     mobileItemWrapper: {
       marginBottom: 0,
-      paddingHorizontal: 0,
     },
     tabletItemWrapper: {
       width: '48%',
-      marginBottom: Spacing.three,
+      marginBottom: 0,
     },
-    applianceCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingVertical: isSmallScreen ? Spacing.three : Spacing.four,
-      paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
-      borderBottomWidth: 1,
-      borderBottomColor: p.divider,
-      minHeight: 72,
-    },
-    applianceCardTablet: {
+    card: {
+      backgroundColor: p.card ?? '#FFFFFF',
       borderRadius: 16,
+      padding: 14,
       borderWidth: 1,
       borderColor: p.divider,
-      borderBottomWidth: 1,
-      backgroundColor: p.card ?? p.bg,
-      elevation: 2,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.08,
-      shadowRadius: 4,
+      shadowOpacity: 0.04,
+      shadowRadius: 6,
+      elevation: 2,
     },
-    applianceMain: {
+    cardHeader: {
       flexDirection: 'row',
-      alignItems: 'flex-start', // Aligns status dot to the top to match the text line
-      flex: 1,
-      gap: Spacing.three,
+      alignItems: 'center',
+    },
+    iconContainer: {
+      width: 48,
+      height: 48,
+      borderRadius: 12,
+      backgroundColor: '#F1F5F9',
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+      position: 'relative',
     },
     statusDot: {
-      width: 10,
-      height: 10,
+      width: 9,
+      height: 9,
       borderRadius: 5,
-      marginTop: rf(6), // Fine-tuned to center perfectly with the title text
+      position: 'absolute',
+      top: 4,
+      right: 4,
+      borderWidth: 1.5,
+      borderColor: '#FFFFFF',
     },
-    applianceTextWrap: {
+    infoContainer: {
       flex: 1,
-      gap: 6,
-    },
-    titleRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      gap: Spacing.two,
+      justifyContent: 'center',
     },
     applianceName: {
       fontWeight: '700',
-      fontSize: rf(16),
-      flexShrink: 1,
+      fontSize: rf(15),
+      color: p.text,
+      marginBottom: 6,
     },
-    metaRow: {
+    badgeRow: {
       flexDirection: 'row',
-      gap: Spacing.two,
-      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 6,
     },
-    metaBadge: {
-      paddingHorizontal: rf(8),
-      paddingVertical: rf(3),
+    badge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#F1F5F9',
+      paddingHorizontal: 8,
+      paddingVertical: 3,
       borderRadius: 6,
     },
-    metaBadgeText: {
-      fontSize: rf(11),
+    badgeText: {
       fontWeight: '600',
+      fontSize: rf(11),
+      color: p.textMuted,
     },
-
+    cardFooter: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginTop: 12,
+      paddingTop: 10,
+      borderTopWidth: 1,
+      borderTopColor: p.divider,
+    },
+    footerLabel: {
+      color: p.textMuted,
+      fontWeight: '500',
+      fontSize: rf(11),
+    },
+    costValue: {
+      fontWeight: '700',
+      fontSize: rf(13),
+      color: p.gold,
+    },
     deleteButton: {
       justifyContent: 'center',
       alignItems: 'center',
       width: DELETE_WIDTH,
       height: '100%',
       borderRadius: 16,
-      marginLeft: Spacing.two,
+      marginLeft: 8,
       gap: 4,
     },
     deleteButtonText: {
       color: 'white',
       fontWeight: '700',
       fontSize: rf(11),
-    },
-    filterBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: Spacing.two,
-      paddingBottom: Spacing.three,
-      flexWrap: 'wrap',
-    },
-    filterChips: {
-      flexDirection: 'row',
-      gap: 6,
-    },
-    filterChip: {
-      paddingHorizontal: rf(12),
-      paddingVertical: rf(6),
-      borderRadius: 20,
-      backgroundColor: p.divider,
-    },
-    filterChipActive: {
-      backgroundColor: p.navy,
-    },
-    filterChipText: {
-      fontSize: rf(12),
-      fontWeight: '600',
-    },
-    filterChipTextActive: {
-      color: 'white',
-      fontWeight: '700',
-    },
-    sortButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 4,
-      paddingHorizontal: rf(10),
-      paddingVertical: rf(6),
-      borderRadius: 20,
-    },
-    sortButtonText: {
-      fontSize: rf(12),
-      fontWeight: '600',
     },
     modalOverlay: {
       flex: 1,
@@ -529,5 +716,51 @@ const createStyles = (
     },
     sortMenuItemText: {
       fontSize: rf(15),
+    },
+    toggleModalDialog: {
+      width: '100%',
+      maxWidth: 320,
+      borderRadius: 20,
+      padding: Spacing.five,
+      alignItems: 'center',
+      gap: Spacing.three,
+      elevation: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+    },
+    toggleModalTitle: {
+      fontSize: 18,
+      fontWeight: '700',
+      textAlign: 'center',
+    },
+    toggleModalMessage: {
+      fontSize: 14,
+      textAlign: 'center',
+      lineHeight: 20,
+    },
+    modalActions: {
+      flexDirection: 'row',
+      gap: Spacing.three,
+      marginTop: Spacing.two,
+    },
+    modalButton: {
+      flex: 1,
+      paddingVertical: 10,
+      borderRadius: 10,
+      alignItems: 'center',
+    },
+    modalButtonText: {
+      color: '#FFFFFF',
+      fontSize: 15,
+      fontWeight: '600',
+    },
+    emptyWrap: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: Spacing.four,
+      paddingBottom: Spacing.eight,
     },
   });
