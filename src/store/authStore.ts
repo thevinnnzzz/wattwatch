@@ -2,7 +2,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { supabase } from '@/lib/supabase';
+import { supabase, getPasswordResetRedirectUrl } from '@/lib/supabase';
 import * as Linking from 'expo-linking';
 import type { Profile, User } from '@supabase/supabase-js';
 
@@ -104,7 +104,7 @@ export const useAuthStore = create<AuthState>()(
         set({ loading: true });
         try {
           const { error } = await supabase.auth.resetPasswordForEmail(email, {
-            redirectTo: Linking.createURL('/(auth)/update-password'),
+            redirectTo: getPasswordResetRedirectUrl(),
           });
           if (error) throw error;
           return { error: null };
@@ -175,6 +175,26 @@ export const useAuthStore = create<AuthState>()(
       },
 
       initialize: async () => {
+        // Set up auth state listener FIRST so we never miss events
+        // (e.g. PASSWORD_RECOVERY fired by a deep-link setSession).
+        supabase.auth.onAuthStateChange(async (event, session) => {
+          console.log('Auth state changed:', event, session?.user?.email);
+          if (session?.user) {
+            set({ session, user: session.user });
+            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+              const { data: profile } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
+              if (profile) set({ profile });
+            }
+          } else {
+            set({ session: null, user: null, profile: null });
+          }
+          set({ loading: false });
+        });
+
         set({ loading: true });
         try {
           // Get initial session directly from Supabase — this is the source
@@ -200,25 +220,6 @@ export const useAuthStore = create<AuthState>()(
         } finally {
           set({ loading: false, initialized: true });
         }
-
-        // Set up auth state listener
-        supabase.auth.onAuthStateChange(async (event, session) => {
-          console.log('Auth state changed:', event, session?.user?.email);
-          if (session?.user) {
-            set({ session, user: session.user });
-            if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-              const { data: profile } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-              if (profile) set({ profile });
-            }
-          } else {
-            set({ session: null, user: null, profile: null });
-          }
-          set({ loading: false });
-        });
       },
     }),
     {

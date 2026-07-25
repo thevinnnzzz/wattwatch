@@ -1,6 +1,6 @@
 // Auth hook for managing authentication state
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabase, getPasswordResetRedirectUrl } from '@/lib/supabase';
 import { useAuthStore } from '@/store/authStore';
 import * as Linking from 'expo-linking';
 
@@ -113,7 +113,7 @@ export function useAuth() {
 
   const resetPassword = useCallback(async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: Linking.createURL('/(auth)/update-password'),
+      redirectTo: getPasswordResetRedirectUrl(),
     });
     return { data, error };
   }, []);

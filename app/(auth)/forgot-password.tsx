@@ -1,13 +1,11 @@
-import { supabase } from '@/lib/supabase';
+import { supabase, getPasswordResetRedirectUrl } from '@/lib/supabase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Linking from 'expo-linking';
 import { Link, router } from 'expo-router';
 import { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import WattWatchLogo from '@/components/layout/WattWatchLogo';
 import { z } from 'zod';
 import { showAppAlert } from '@/components/ui/AppAlert';
 import { usePalette } from '@/constants/usePalette';
@@ -56,16 +54,18 @@ export default function ForgotPasswordScreen() {
   const p = usePalette();
   const styles = createStyles(p);
   const [loading, setLoading] = useState(false);
+  const [cooldown, setCooldown] = useState(0);
   const { control, handleSubmit } = useForm<ForgotPasswordForm>({
     resolver: zodResolver(forgotPasswordSchema),
     defaultValues: { email: '' },
   });
 
   const onSubmit = async (data: ForgotPasswordForm) => {
+    if (cooldown > 0) return;
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(data.email, {
-        redirectTo: Linking.createURL('/(auth)/update-password'),
+        redirectTo: getPasswordResetRedirectUrl(),
       });
       if (error) {
         showAppAlert({ title: 'Error', message: error.message, type: 'error' });
@@ -76,6 +76,13 @@ export default function ForgotPasswordScreen() {
       showAppAlert({ title: 'Error', message: 'An unexpected error occurred.', type: 'error' });
     } finally {
       setLoading(false);
+      setCooldown(60);
+      const timer = setInterval(() => {
+        setCooldown((prev) => {
+          if (prev <= 1) { clearInterval(timer); return 0; }
+          return prev - 1;
+        });
+      }, 1000);
     }
   };
 
@@ -86,7 +93,15 @@ export default function ForgotPasswordScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <WattWatchLogo showBrandName />
+        <View style={styles.logoContainer}>
+          <View style={styles.logoBadge}>
+            <Image source={require('@/assets/images/icon.png')} style={styles.logoImage} resizeMode="contain" />
+          </View>
+          <View style={styles.brandRow}>
+            <Text style={styles.brandWatt}>watt</Text>
+            <Text style={styles.brandWatch}>watch</Text>
+          </View>
+        </View>
 
         <View style={styles.formContainer}>
           <Controller
@@ -108,7 +123,7 @@ export default function ForgotPasswordScreen() {
           <TouchableOpacity
             style={styles.btnWrap}
             onPress={handleSubmit(onSubmit)}
-            disabled={loading}
+            disabled={loading || cooldown > 0}
             activeOpacity={0.8}
           >
             <LinearGradient
@@ -119,6 +134,8 @@ export default function ForgotPasswordScreen() {
             >
               {loading ? (
                 <ActivityIndicator color="#FFFFFF" size="small" />
+              ) : cooldown > 0 ? (
+                <Text style={styles.btnText}>Resend in {cooldown}s</Text>
               ) : (
                 <Text style={styles.btnText}>Send Reset Instructions</Text>
               )}
@@ -141,9 +158,40 @@ export default function ForgotPasswordScreen() {
 const createStyles = (p: Palette) => StyleSheet.create({
   safe: { flex: 1, backgroundColor: p.bg },
   scroll: { flexGrow: 1, paddingHorizontal: 32, justifyContent: 'center', paddingVertical: 24 },
-  logoWrap: { alignItems: 'center', marginBottom: 36 },
-  badgeContainer: { marginBottom: 12 },
-  brandTitle: { fontSize: 28, fontWeight: '900', color: p.text, letterSpacing: 1.5 },
+  logoContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 36,
+  },
+  logoBadge: {
+    width: 100,
+    height: 100,
+    borderRadius: 50,
+    borderWidth: 4,
+    borderColor: '#1E3A8A',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+    overflow: 'hidden',
+  },
+  logoImage: {
+    width: 90,
+    height: 90,
+  },
+  brandRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  brandWatt: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#1E3A8A',
+  },
+  brandWatch: {
+    fontSize: 40,
+    fontWeight: '800',
+    color: '#FF8C00',
+  },
   formContainer: { width: '100%', gap: 16 },
   fieldWrap: { width: '100%' },
   fieldLabel: { fontSize: 12, fontWeight: '600', color: p.text, marginBottom: 6, marginLeft: 4 },

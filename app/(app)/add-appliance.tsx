@@ -9,10 +9,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCreateAppliance } from '@/hooks/useSupabaseQuery';
 import { showAppAlert } from '@/components/ui/AppAlert';
 import { Ionicons } from '@expo/vector-icons';
-import { router, Stack } from 'expo-router';
-import { useMemo, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   PixelRatio,
   Platform,
@@ -38,6 +37,13 @@ export default function AddApplianceScreen() {
     wattage: number;
     icon_name?: string;
   } | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      setSelectedAppliance(null);
+      setSearch('');
+    }, [])
+  );
 
   // Responsive Scaling Logic
   const { width } = useWindowDimensions();
@@ -76,9 +82,7 @@ export default function AddApplianceScreen() {
       {
         onSuccess: () => {
           setLoading(false);
-          Alert.alert('Success', 'Appliance added successfully.', [
-            { text: 'OK', onPress: () => router.navigate('/(app)/appliances') },
-          ]);
+          showAppAlert({ title: 'Success', message: 'Appliance added successfully.', type: 'success', onDismiss: () => router.replace('/(app)/appliances') });
         },
         onError: (error) => {
           setLoading(false);

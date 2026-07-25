@@ -81,6 +81,14 @@ if (!supabaseUrl || !supabaseAnonKey) {
   console.warn('Add EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY to .env.local');
 }
 
+// Generates the redirect URL for password reset.
+// Uses the app's own deep link URL so Supabase redirects back to the app
+// instead of falling back to the Site URL setting (e.g. localhost:3000).
+// On Android, the hash fragment from Supabase is preserved through the
+// custom scheme deep link.
+export const getPasswordResetRedirectUrl = () =>
+  Linking.createURL('update-password');
+
 // Create Supabase client
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
@@ -130,7 +138,7 @@ export const auth = {
   // Reset password request
   resetPassword: async (email: string) => {
     const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: Linking.createURL('/(auth)/update-password'),
+      redirectTo: getPasswordResetRedirectUrl(),
     });
     return { data, error };
   },

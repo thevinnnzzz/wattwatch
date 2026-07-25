@@ -7,7 +7,7 @@ import { useActiveRate, useDeleteAppliance, useUpdateAppliance, useUserAppliance
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Animated, FlatList, Modal, PixelRatio, Pressable, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
+import { Animated, FlatList, Modal, PixelRatio, Pressable, RefreshControl, StyleSheet, Text, TouchableOpacity, useWindowDimensions, View } from 'react-native';
 import { Swipeable } from 'react-native-gesture-handler';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -172,6 +172,10 @@ export default function AppliancesScreen() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [showToggleConfirm, setShowToggleConfirm] = useState(false);
   const [pendingToggle, setPendingToggle] = useState<any>(null);
+  const [showActionMenu, setShowActionMenu] = useState(false);
+  const [actionAppliance, setActionAppliance] = useState<any>(null);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const filteredAndSorted = useMemo(() => {
     let list = [...appliances];
@@ -216,7 +220,7 @@ export default function AppliancesScreen() {
 
   const renderRightActions = (applianceId: string) => (
     <Pressable
-      onPress={() => deleteAppliance(applianceId)}
+      onPress={() => { setPendingDeleteId(applianceId); setShowDeleteConfirm(true); }}
       style={({ pressed }) => [
         styles.deleteButton,
         { backgroundColor: p.error, opacity: pressed ? 0.8 : 1 },
@@ -241,9 +245,10 @@ export default function AppliancesScreen() {
       >
         <Pressable
           onPress={() => router.push({ pathname: '/(app)/appliance-details', params: { applianceId: item.id } })}
+          onLongPress={() => { setActionAppliance(item); setShowActionMenu(true); }}
           style={({ pressed }) => [
             styles.card,
-            { opacity: pressed ? 0.85 : 1 },
+            pressed && { backgroundColor: p.divider },
           ]}
         >
           <View style={styles.cardHeader}>
@@ -305,12 +310,8 @@ export default function AppliancesScreen() {
     );
   };
 
-  if (isLoading) {
-    return <Spinner />;
-  }
-
-  return (
-    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top', 'left', 'right']}>
+  const renderListHeader = () => (
+    <>
       <View style={styles.headerOuter}>
         <View>
           <ThemedText style={styles.headerTitle} maxFontSizeMultiplier={1.3}>
@@ -363,6 +364,63 @@ export default function AppliancesScreen() {
           </ThemedText>
         </Pressable>
       </View>
+    </>
+  );
+
+  const renderEmptyState = () => (
+    <View style={styles.emptyWrap}>
+      <Ionicons name="apps-outline" size={rf(48)} color={p.textMuted} />
+      <ThemedText style={{ fontWeight: 'bold', fontSize: rf(16), marginTop: Spacing.two }} maxFontSizeMultiplier={1.2}>
+        {filterStatus === 'all' ? 'No Appliances Found' : 'No Matching Appliances'}
+      </ThemedText>
+      <ThemedText style={{ color: p.textMuted, textAlign: 'center', fontSize: rf(14), marginTop: Spacing.one }} maxFontSizeMultiplier={1.2}>
+        {filterStatus === 'all'
+          ? 'Add your first appliance to start tracking your energy consumption.'
+          : 'Try changing the filter to see more appliances.'}
+      </ThemedText>
+      {filterStatus === 'all' ? (
+        <TouchableOpacity
+          onPress={() => router.push('/(app)/add-appliance')}
+          activeOpacity={0.8}
+          style={[styles.addButton, { marginTop: Spacing.four }]}
+        >
+          <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
+            Add Appliance
+          </ThemedText>
+        </TouchableOpacity>
+      ) : (
+        <TouchableOpacity
+          onPress={() => setFilterStatus('all')}
+          activeOpacity={0.8}
+          style={[styles.addButton, { marginTop: Spacing.four }]}
+        >
+          <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
+            Show All
+          </ThemedText>
+        </TouchableOpacity>
+      )}
+    </View>
+  );
+
+  if (isLoading) {
+    return <Spinner color={p.gold} />;
+  }
+
+  return (
+    <SafeAreaView style={{ flex: 1, backgroundColor: p.bg }} edges={['top', 'left', 'right']}>
+      <FlatList
+        data={filteredAndSorted}
+        renderItem={renderItem}
+        keyExtractor={(item) => item.id}
+        key={numColumns}
+        numColumns={numColumns}
+        columnWrapperStyle={isTablet ? styles.columnWrapper : undefined}
+        contentContainerStyle={styles.listContent}
+        showsVerticalScrollIndicator={false}
+        ListHeaderComponent={renderListHeader}
+        ListEmptyComponent={renderEmptyState}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={p.gold} colors={[p.gold]} />}
+      />
 
       <Modal transparent visible={showSortMenu} onRequestClose={() => setShowSortMenu(false)} animationType="fade">
         <Pressable style={styles.modalOverlay} onPress={() => setShowSortMenu(false)}>
@@ -434,53 +492,66 @@ export default function AppliancesScreen() {
         </Pressable>
       </Modal>
 
-      {filteredAndSorted.length === 0 ? (
-        <View style={styles.emptyWrap}>
-          <Ionicons name="apps-outline" size={rf(48)} color={p.textMuted} />
-          <ThemedText style={{ fontWeight: 'bold', fontSize: rf(16), marginTop: Spacing.two }} maxFontSizeMultiplier={1.2}>
-            {filterStatus === 'all' ? 'No Appliances Found' : 'No Matching Appliances'}
-          </ThemedText>
-          <ThemedText style={{ color: p.textMuted, textAlign: 'center', fontSize: rf(14), marginTop: Spacing.one }} maxFontSizeMultiplier={1.2}>
-            {filterStatus === 'all'
-              ? 'Add your first appliance to start tracking your energy consumption.'
-              : 'Try changing the filter to see more appliances.'}
-          </ThemedText>
-          {filterStatus === 'all' ? (
-            <TouchableOpacity
-              onPress={() => router.push('/(app)/add-appliance')}
-              activeOpacity={0.8}
-              style={[styles.addButton, { marginTop: Spacing.four }]}
+      <Modal transparent visible={showActionMenu} animationType="fade" onRequestClose={() => setShowActionMenu(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowActionMenu(false)}>
+          <View style={[styles.actionMenuDialog, { backgroundColor: p.card ?? p.bg }]}>
+            <View style={styles.actionMenuHandle} />
+            <ThemedText style={styles.actionMenuTitle}>{actionAppliance?.name}</ThemedText>
+            <Pressable
+              style={styles.actionMenuItem}
+              onPress={() => {
+                setShowActionMenu(false);
+                if (actionAppliance) router.push({ pathname: '/(app)/appliance-details', params: { applianceId: actionAppliance.id } });
+              }}
             >
-              <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
-                Add Appliance
-              </ThemedText>
-            </TouchableOpacity>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setFilterStatus('all')}
-              activeOpacity={0.8}
-              style={[styles.addButton, { marginTop: Spacing.four }]}
+              <Ionicons name="create-outline" size={rf(22)} color={p.navy} />
+              <ThemedText style={styles.actionMenuItemText}>Edit</ThemedText>
+            </Pressable>
+            <View style={[styles.actionMenuDivider, { backgroundColor: p.divider }]} />
+            <Pressable
+              style={styles.actionMenuItem}
+              onPress={() => {
+                setShowActionMenu(false);
+                if (actionAppliance) { setPendingDeleteId(actionAppliance.id); setShowDeleteConfirm(true); }
+              }}
             >
-              <ThemedText style={styles.addButtonText} maxFontSizeMultiplier={1.2}>
-                Show All
-              </ThemedText>
-            </TouchableOpacity>
-          )}
-        </View>
-      ) : (
-        <FlatList
-          data={filteredAndSorted}
-          renderItem={renderItem}
-          keyExtractor={(item) => item.id}
-          key={numColumns}
-          numColumns={numColumns}
-          columnWrapperStyle={isTablet ? styles.columnWrapper : undefined}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshing={refreshing}
-          onRefresh={onRefresh}
-        />
-      )}
+              <Ionicons name="trash-outline" size={rf(22)} color={p.error} />
+              <ThemedText style={[styles.actionMenuItemText, { color: p.error }]}>Delete</ThemedText>
+            </Pressable>
+          </View>
+        </Pressable>
+      </Modal>
+
+      <Modal transparent visible={showDeleteConfirm} animationType="fade" onRequestClose={() => setShowDeleteConfirm(false)}>
+        <Pressable style={styles.modalOverlay} onPress={() => setShowDeleteConfirm(false)}>
+          <View style={[styles.toggleModalDialog, { backgroundColor: p.card ?? p.bg }]}>
+            <Ionicons name="warning-outline" size={48} color={p.error} />
+            <ThemedText style={styles.toggleModalTitle}>Delete Appliance?</ThemedText>
+            <ThemedText style={[styles.toggleModalMessage, { color: p.textMuted }]}>
+              This will permanently delete this appliance and all its energy log data from the database.
+            </ThemedText>
+            <View style={styles.modalActions}>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.divider }]}
+                onPress={() => { setShowDeleteConfirm(false); setPendingDeleteId(null); }}
+              >
+                <Text style={[styles.modalButtonText, { color: p.text }]}>Cancel</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, { backgroundColor: p.error }]}
+                onPress={() => {
+                  if (pendingDeleteId) deleteAppliance(pendingDeleteId);
+                  setShowDeleteConfirm(false);
+                  setPendingDeleteId(null);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>
+        </Pressable>
+      </Modal>
+
     </SafeAreaView>
   );
 }
@@ -496,9 +567,7 @@ const createStyles = (
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
       paddingTop: Spacing.three,
-      paddingBottom: Spacing.four,
     },
     headerTitle: {
       fontWeight: '800',
@@ -530,8 +599,6 @@ const createStyles = (
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
-      marginBottom: Spacing.four,
     },
     filterGroup: {
       flexDirection: 'row',
@@ -573,6 +640,7 @@ const createStyles = (
       color: p.textMuted,
     },
     listContent: {
+      flexGrow: 1,
       paddingHorizontal: isSmallScreen ? Spacing.three : Spacing.four,
       paddingBottom: 32,
       gap: 12,
@@ -729,6 +797,51 @@ const createStyles = (
       shadowOffset: { width: 0, height: 6 },
       shadowOpacity: 0.15,
       shadowRadius: 12,
+    },
+    actionMenuDialog: {
+      width: '100%',
+      maxWidth: 320,
+      borderRadius: 20,
+      paddingTop: Spacing.three,
+      paddingBottom: Spacing.five,
+      paddingHorizontal: Spacing.five,
+      alignItems: 'center',
+      gap: 0,
+      elevation: 10,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 6 },
+      shadowOpacity: 0.15,
+      shadowRadius: 12,
+    },
+    actionMenuHandle: {
+      width: 36,
+      height: 4,
+      borderRadius: 2,
+      backgroundColor: '#D1D5DB',
+      marginBottom: Spacing.four,
+    },
+    actionMenuTitle: {
+      fontSize: 17,
+      fontWeight: '700',
+      marginBottom: Spacing.four,
+      textAlign: 'center',
+    },
+    actionMenuItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: Spacing.three,
+      paddingVertical: Spacing.three,
+      width: '100%',
+    },
+    actionMenuItemText: {
+      fontSize: 16,
+      fontWeight: '600',
+      color: p.text,
+    },
+    actionMenuDivider: {
+      height: 1,
+      width: '100%',
+      marginVertical: 0,
     },
     toggleModalTitle: {
       fontSize: 18,

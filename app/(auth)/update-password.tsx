@@ -1,9 +1,8 @@
 import { supabase } from '@/lib/supabase';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { LinearGradient } from 'expo-linear-gradient';
-import * as Linking from 'expo-linking';
 import { router } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -59,38 +58,51 @@ export default function UpdatePasswordScreen() {
   const styles = createStyles(p);
   const [loading, setLoading] = useState(false);
   const [verifying, setVerifying] = useState(true);
+  const doneRef = useRef(false);
 
   useEffect(() => {
-    const handleDeepLink = async () => {
-      try {
-        const url = await Linking.getInitialURL();
-        if (!url) {
-          setVerifying(false);
-          return;
-        }
+    if (doneRef.current) return;
 
-        const fragment = url.split('#')[1] || '';
-        const fragmentParams = new URLSearchParams(fragment);
-        const accessToken = fragmentParams.get('access_token');
-        const refreshToken = fragmentParams.get('refresh_token');
-
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (error) throw error;
-        }
-      } catch {
-        showAppAlert({ title: 'Error', message: 'Invalid or expired reset link.', type: 'error' });
-        router.replace('/(auth)/forgot-password');
-      } finally {
+    // Auth layout already processes the URL tokens. We just need to wait
+    // for the recovery session to appear via onAuthStateChange.
+    // NOTE: setSession() fires SIGNED_IN, not PASSWORD_RECOVERY, so
+    // we catch both.
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (doneRef.current) return;
+      if (session && (event === 'PASSWORD_RECOVERY' || event === 'SIGNED_IN')) {
+        doneRef.current = true;
         setVerifying(false);
       }
-    };
+    });
 
-    handleDeepLink();
+    // Also check if session already exists
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (doneRef.current) return;
+      if (session) {
+        doneRef.current = true;
+        setVerifying(false);
+      }
+    });
+
+    // Timeout fallback — if no recovery session after 10 s, show error
+    const timeout = setTimeout(() => {
+      if (doneRef.current) return;
+      doneRef.current = true;
+      setVerifying(false);
+      showAppAlert({
+        title: 'Error',
+        message: 'Invalid or expired reset link. Please request a new one.',
+        type: 'error',
+        onDismiss: () => router.replace('/(auth)/forgot-password'),
+      });
+    }, 10000);
+
+    return () => {
+      subscription.unsubscribe();
+      clearTimeout(timeout);
+    };
   }, []);
+
   const { control, handleSubmit, formState: { errors } } = useForm<UpdatePasswordForm>({
     resolver: zodResolver(updatePasswordSchema),
     defaultValues: { password: '', confirmPassword: '' },
